@@ -127,6 +127,7 @@ from .StarTokeniser import getTokenIterator
 _quoteStartStrings = [
   '_', '[', ']', '$', '"', "'", 'save_', 'loop_', 'stop_', 'data_', 'global_'
 ]
+startComment = '#'
 _quoteStrings = ['true', 'false', 'NaN', 'Infinity', '-Infinity']
 _containsWhiteSpace = re.compile('\s').search
 _containsSingleEndQuote =  re.compile("'\s").search
@@ -451,6 +452,7 @@ class Loop:
       raise ValueError("%s: duplicate column name: %s" % (self, value))
     elif self.data:
       if extendData:
+        columns.append(value)
         for row in self.data:
           row[value] = None
       else:
@@ -466,6 +468,7 @@ class Loop:
       if removeData:
         for row in self.data:
           del row[value]
+        columns.remove(value)
       else:
         raise ValueError("%s: Cannot remove columns when loop contains data" % self)
     else:
@@ -569,7 +572,7 @@ def valueToString(value, quoteNumberStrings=False):
     if '\n' not in value:
 
       if (_containsWhiteSpace(value) or matchesNumber or value in _quoteStrings or
-            any(value.startswith(x) for x in _quoteStartStrings)):
+            startComment in value or any(value.startswith(x) for x in _quoteStartStrings)):
         if not "'" in value:
           value = "'%s'" % value
         elif not '"' in value:
