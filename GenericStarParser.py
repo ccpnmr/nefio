@@ -128,7 +128,7 @@ _quoteStartStrings = [
   '_', '[', ']', '$', '"', "'", 'save_', 'loop_', 'stop_', 'data_', 'global_'
 ]
 startComment = '#'
-_quoteStrings = ['true', 'false', 'NaN', 'Infinity', '-Infinity']
+_quoteStrings = ['true', 'false', 'NaN', 'Infinity', '-Infinity', '']
 _containsWhiteSpace = re.compile('\s').search
 _containsSingleEndQuote =  re.compile("'\s").search
 _containsDoubleEndQuote =  re.compile('"\s').search
