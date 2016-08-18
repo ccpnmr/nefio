@@ -460,7 +460,7 @@ def createRestraintListFrame(restraintList):
     ('sf_category',sf_category),
     ('sf_framecode',framecode),
     ('potential_type',restraintList.potentialType),
-    ('origin',restraintList.origin)
+    ('restraint_origin',restraintList.origin)
   ])
 
   # Rdc-specific tags:

@@ -101,6 +101,7 @@ def parseNmrStar(text:str, mode='standard'):
 
 def parseNef(text:str, mode='standard'):
   """load NEF from string"""
+
   dataExtent = GenericStarParser.parse(text, mode)
   converter = _StarDataConverter(dataExtent, fileType='nef')
   converter.preValidate()
@@ -108,18 +109,24 @@ def parseNef(text:str, mode='standard'):
   #
   return result
 
-def parseNmrStarFile(fileName:str, mode:str='standard'):
+def parseNmrStarFile(fileName:str, mode:str='standard', wrapInDataBlock:bool=False):
   """parse NMRSTAR from file"""
-  dataExtent = GenericStarParser.parseFile(fileName, mode)
+  text = open(fileName).read()
+  if wrapInDataBlock and 'save_' in text and not 'data_' in text:
+    text = "data_dummy \n\n" + text
+  dataExtent = GenericStarParser.parse(text, mode)
   converter = _StarDataConverter(dataExtent)
   converter.preValidate()
   result = converter.convert()
   #
   return result
 
-def parseNefFile(fileName:str, mode:str='standard'):
+def parseNefFile(fileName:str, mode:str='standard', wrapInDataBlock:bool=False):
   """parse NEF from file"""
-  dataExtent = GenericStarParser.parseFile(fileName, mode)
+  text = open(fileName).read()
+  if wrapInDataBlock and 'save_' in text and not 'data_' in text:
+    text = "data_dummy \n\n" + text
+  dataExtent = GenericStarParser.parse(text, mode)
   converter = _StarDataConverter(dataExtent, fileType='nef')
   converter.preValidate()
   result = converter.convert()
