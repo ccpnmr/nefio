@@ -119,7 +119,26 @@ import sys
 import re
 import math
 from collections import OrderedDict
+from itertools import zip_longest
 from .StarTokeniser import getTokenIterator
+
+from .StarTokeniser import TOKEN_MULTILINE
+from .StarTokeniser import TOKEN_COMMENT
+from .StarTokeniser import TOKEN_GLOBAL
+from .StarTokeniser import TOKEN_SAVE_FRAME
+from .StarTokeniser import TOKEN_SAVE_FRAME_REF
+from .StarTokeniser import TOKEN_LOOP_STOP
+from .StarTokeniser import TOKEN_DATA_BLOCK
+from .StarTokeniser import TOKEN_LOOP
+from .StarTokeniser import TOKEN_BAD_CONSTRUCT
+from .StarTokeniser import TOKEN_DATA_NAME
+from .StarTokeniser import TOKEN_SQUOTE_STRING
+from .StarTokeniser import TOKEN_DQUOTE_STRING
+from .StarTokeniser import TOKEN_NULL
+from .StarTokeniser import TOKEN_UNKNOWN
+from .StarTokeniser import TOKEN_SQUARE_BRACKET
+from .StarTokeniser import TOKEN_STRING
+from .StarTokeniser import TOKEN_BAD_TOKEN
 
 # Constants for converting values to string
 # NB - these can be overridden by pre-converting all values to
@@ -414,37 +433,54 @@ class Loop:
   def newRow(self, values=None) -> LoopRow:
     """Add new row, initialised from values"""
 
+    # Use internal attribute for speed, columns do not change
+    columns = self._columns
+
     if values is None:
-      row = LoopRow((x,None) for x in self.columns)
+      row = LoopRow((x,None) for x in columns)
 
     elif isinstance(values, dict):
-      ll = tuple(x for x in values if x not in self.columns)
-      if ll:
-        raise ValueError("Illegal fields in row input: %s" % ll)
+      if any(x for x in values if x not in columns):
+        raise ValueError("Illegal fields in row input: %s"
+                         % list(x for x in values if x not in columns))
       else:
-        row = LoopRow((x,values.get(x)) for x in self.columns)
+        row = LoopRow((x,values.get(x)) for x in columns)
 
     else:
-      if len(values) > len(self.columns):
-        raise ValueError("Row passed %s values for %s columns" % (len(values), len(self.columns)))
-      row = LoopRow(zip(self.columns,values))
+      if len(values) > len(columns):
+        raise ValueError("Row passed %s values for %s columns" % (len(values), len(columns)))
+      row = LoopRow(zip(columns,values))
     #
     self.data.append(row)
     return row
 
-  def _addValue(self, value:str):
-    """Put value in first slot in current row where previous value is None
-    Add new row if necessary"""
-    data = self.data
-
-    if data and None in data[-1].values():
-      row = data[-1]
-      index = list(row.values()).index(None)
-    else:
-      row = self.newRow()
-      index = 0
-    #
-    row[self.columns[index]] = value
+  # def _addValue(self, value:str):
+  #   """Put value in next free slot in current row
+  #   Add new row if necessary"""
+  #   data = self.data
+  #
+  #   index = self._columnIndex
+  #   if index == 0:
+  #     row = self.newRow()
+  #   else:
+  #     row = data[-1]
+  #
+  #   row[self._columns[index]] = value
+  #
+  #   index += 1
+  #   if index >= self._columnCount:
+  #     self._columnIndex = 0
+  #   else:
+  #     self._columnIndex = index
+  #
+  #   # if data and None in data[-1].values():
+  #   #   row = data[-1]
+  #   #   index = list(row.values()).index(None)
+  #   # else:
+  #   #   row = self.newRow()
+  #   #   index = 0
+  #   # #
+  #   # row[self._columns[index]] = value
 
   def addColumn(self, value:str, extendData=False):
     columns = self._columns
@@ -461,6 +497,7 @@ class Loop:
       columns.append(value)
 
   def removeColumn(self, value:str, removeData=False):
+    """Remove column from loop. Will NOT work properly if called during parsing."""
     columns = self._columns
     if value not in columns:
       raise ValueError("%s: column named %s does not exist" % (self, value))
@@ -489,10 +526,10 @@ class Loop:
 
     # Write column headers
     if self.tagPrefix:
-      for col in self.columns:
+      for col in self._columns:
         lines.append(lineFormat % (self.tagPrefix + col))
     else:
-      for col in self.columns:
+      for col in self._columns:
         lines.append(lineFormat % col)
     lines.append('\n')
 
@@ -663,43 +700,80 @@ class GeneralStarParser:
     self.stack.append(obj)
 
   def _closeLoop(self, value):
-    loop = self.stack[-1]
-    if not isinstance(loop, Loop):
-      raise StarSyntaxError(self._errorMessage("Loop stop_ %s outside loop" % value, value))
 
-    columns = loop.columns
-    data = loop.data
-    if not columns:
+    stack = self.stack
+    data = stack.pop()
+    loop = stack.pop()
+    if not isinstance(loop, Loop):
+      if isinstance(data, Loop):
+        raise TypeError("Implementation error, loop not correctly put on stack")
+      else:
+        raise StarSyntaxError(self._errorMessage("Loop stop_ %s outside loop" % value, value))
+
+    columnCount = len(loop._columns)
+    if not columnCount:
       raise StarSyntaxError(self._errorMessage(" loop lacks column names" , value))
 
     if data:
-      row = data[-1]
-      if None in row.values():
-        missingValueCount = len([x for x in row.values() if x is None])
+
+      if len(data) % columnCount:
         if self.padIncompleteLoops:
           print("WARNING Token %s: %s in %s is missing %s values. Last row was: %s"
-                % (self.counter, loop, self.stack[-2], missingValueCount, data[-1]))
-          # for row in data:
-          #   print( ' - ', *row)
-          for key,val in row.items():
-            if val is None:
-              row[key] = NULLSTRING
+                % (self.counter, loop, self.stack[-2],
+                   columnCount - (len(data) % columnCount), data[-1]))
         else:
           raise StarSyntaxError(
-            self._errorMessage("loop %s is missing %s values" % (loop, missingValueCount), value)
+            self._errorMessage("loop %s is missing %s values"
+                               % (loop, (columnCount - (len(data) % columnCount))), value)
           )
+
+      # Make rows:
+      args = [iter(data)] * columnCount
+      for tt in zip_longest(*args, fillvalue=NULLSTRING):
+        loop.newRow(values=tt)
 
     else:
       # empty loops appear here. We allow them, but that could change
       pass
 
-    self.stack.pop()
+  # def _closeLoop(self, value):
+  #   loop = self.stack[-1]
+  #   if not isinstance(loop, Loop):
+  #     raise StarSyntaxError(self._errorMessage("Loop stop_ %s outside loop" % value, value))
+  #
+  #   data = loop.data
+  #   if not loop._columns:
+  #     raise StarSyntaxError(self._errorMessage(" loop lacks column names" , value))
+  #
+  #   if data:
+  #     row = data[-1]
+  #     if None in row.values():
+  #       missingValueCount = len([x for x in row.values() if x is None])
+  #       if self.padIncompleteLoops:
+  #         print("WARNING Token %s: %s in %s is missing %s values. Last row was: %s"
+  #               % (self.counter, loop, self.stack[-2], missingValueCount, data[-1]))
+  #         # for row in data:
+  #         #   print( ' - ', *row)
+  #         for key,val in row.items():
+  #           if val is None:
+  #             row[key] = NULLSTRING
+  #       else:
+  #         raise StarSyntaxError(
+  #           self._errorMessage("loop %s is missing %s values" % (loop, missingValueCount), value)
+  #         )
+  #
+  #   else:
+  #     # empty loops appear here. We allow them, but that could change
+  #     pass
+  #
+  #   self.stack.pop()
 
   def _addLoopField(self, value):
 
     stack = self.stack
-    loop = stack[-1]
-    if loop.data:
+    loop = stack[-2]
+    data = stack[-1]
+    if data:
       if self.enforceLoopStop:
         raise StarSyntaxError(
           self._errorMessage("Illegal token %s in unclosed loop" % value, value)
@@ -709,11 +783,11 @@ class GeneralStarParser:
         self._closeLoop(value)
         stack.append(value)
     else:
-      if not loop.columns:
+      if not loop._columns:
         # name loop after first column
         loop.name = value
       loop.addColumn(value)
-      stack[-2].addItem(value, loop)
+      stack[-3].addItem(value, loop)
 
   def _processComment(self, value:str):
     # Comments are ignored
@@ -737,7 +811,7 @@ class GeneralStarParser:
       self.globalsCounter = 1
 
     # Terminate open elements
-    if isinstance(stack[-1], Loop):
+    if isinstance(stack[-1], list):
       if self.enforceLoopStop:
         raise StarSyntaxError(
           self._errorMessage("Loop terminated by %s instead of stop_" % value, value)
@@ -773,7 +847,7 @@ class GeneralStarParser:
     lowerValue = value.lower()
 
     # Terminate loop
-    if isinstance(stack[-1], Loop):
+    if isinstance(stack[-1], list):
       if self.enforceLoopStop:
         raise StarSyntaxError(
           self._errorMessage("Loop terminated by %s instead of stop_" % value, value)
@@ -813,20 +887,47 @@ class GeneralStarParser:
         self._errorMessage("saveframe start out of context: %s" % value, value)
       )
 
+  # def _openLoop(self, value:str):
+  #
+  #   stack = self.stack
+  #
+  #   # Terminate open elements
+  #   if isinstance(stack[-1], Loop):
+  #     if not stack[-1].data:
+  #       # NB, nested loops are not supported
+  #       raise StarSyntaxError(
+  #         self._errorMessage("Loop terminated by %s instead of stop_" % value, value)
+  #       )
+  #     elif self.enforceLoopStop:
+  #       raise StarSyntaxError(
+  #         self._errorMessage("Loop terminated by %s instead of stop_"%  value, value)
+  #       )
+  #     else:
+  #       # Close loop and pop it off the stack
+  #       self._closeLoop(value)
+  #
+  #   if isinstance(stack[-1], (SaveFrame, DataBlock)):
+  #     # NB Loop naming and adding to container is done when first column name is read
+  #     stack.append(Loop(name='loop_'))
+  #     stack.ppend(list())
+  #
+  #   else:
+  #     raise StarSyntaxError(self._errorMessage("loop_ out of context", value))
+
   def _openLoop(self, value:str):
 
     stack = self.stack
 
     # Terminate open elements
-    if isinstance(stack[-1], Loop):
-      if not stack[-1].data:
+    if isinstance(stack[-1], list):
+      if not stack[-1]:
         # NB, nested loops are not supported
         raise StarSyntaxError(
           self._errorMessage("Loop terminated by %s instead of stop_" % value, value)
         )
       elif self.enforceLoopStop:
         raise StarSyntaxError(
-          self._errorMessage("Loop terminated by %s instead of stop_"%  value, value)
+          self._errorMessage("Loop terminated b+y %s instead of stop_"%  value, value)
         )
       else:
         # Close loop and pop it off the stack
@@ -835,6 +936,7 @@ class GeneralStarParser:
     if isinstance(stack[-1], (SaveFrame, DataBlock)):
       # NB Loop naming and adding to container is done when first column name is read
       stack.append(Loop(name='loop_'))
+      stack.append(list())
 
     else:
       raise StarSyntaxError(self._errorMessage("loop_ out of context", value))
@@ -849,7 +951,7 @@ class GeneralStarParser:
     useValue = value.lower() if self.lowerCaseTags else value
     if isinstance(stack[-1], (SaveFrame, DataBlock)):
       stack.append(useValue)
-    elif isinstance(stack[-1], Loop):
+    elif isinstance(stack[-1], list):
       self._addLoopField(useValue)
     else:
       raise StarSyntaxError(self._errorMessage(
@@ -864,64 +966,118 @@ class GeneralStarParser:
       # Value half of tag, value pair
       stack.pop()
       stack[-1].addItem(last, value)
-    elif isinstance(last, Loop):
-      last._addValue(value)
     else:
-      raise StarSyntaxError(self._errorMessage("Data value %s must be in item or loop_" % value,
-                                               value))
+      try:
+        func = last.append
+      except AttributeError:
+        raise StarSyntaxError(self._errorMessage("Data value %s must be in item or loop_" % value,
+                                                 value))
+      func(value)
 
   def parse(self):
+
+    # Speed optimisation:
+    processValue = self.processValue
+
+    # NBNB This list must be in sync with numerical values of tk.type, as returned from the tokeniser
+    processFunctions = [None] * 20
+    processFunctions[TOKEN_SQUOTE_STRING] = processValue
+    processFunctions[TOKEN_DQUOTE_STRING] = processValue
+    processFunctions[TOKEN_MULTILINE] = processValue
+    processFunctions[TOKEN_DATA_NAME] = self.processDataName
+    processFunctions[TOKEN_LOOP] = self._openLoop
+    processFunctions[TOKEN_LOOP_STOP] = self._closeLoop
+    processFunctions[TOKEN_COMMENT] = self._processComment
+    processFunctions[TOKEN_GLOBAL] = self._processGlobal
+    processFunctions[TOKEN_DATA_BLOCK] = self._processDataBlock
+
+    unquotedValueTags = (TOKEN_STRING, TOKEN_NULL, TOKEN_UNKNOWN, TOKEN_SAVE_FRAME_REF)
+    # quotedValueTags = (TOKEN_SQUOTE_STRING, TOKEN_DQUOTE_STRING, TOKEN_MULTILINE)
 
     stack = self.stack
 
     result = DataExtent()
     stack.append(result)
 
+    value = None
     self.counter = 0   # Token counter
     try:
       for tk in self.tokeniser:
-        typ = tk.type
-        value = tk.value
         self.counter += 1
+        typ, value = tk
+        # typ = tk.type
+        # value = tk.value
 
-        if typ == 'COMMENT':
-          self._processComment(value)
-        elif typ == 'GLOBAL':
-          self._processGlobal(value)
-        elif typ == 'DATA_BLOCK':
-          self._processDataBlock(value)
-        elif typ == 'SAVE_FRAME':
-          # save_ string
-          self._closeSaveFrame(value)
-          if value.lower() != 'save_':
-            self._openSaveFrame(value)
-        elif typ == 'LOOP':
-          self._openLoop(value)
-        elif typ == 'LOOP_STOP':
-            self._closeLoop(value)
-        elif typ in ('BAD_CONSTRUCT', 'BAD_TOKEN'):
-          self._processBadToken(value, typ)
-        elif typ == 'SQUARE_BRACKET':
-          if self.allowSquareBracketStrings:
-            self.processValue(UnquotedValue(value))
-          else:
-            self._processBadToken(value, typ)
-        elif typ == 'DATA_NAME':
-          self.processDataName(value)
+        if typ in unquotedValueTags:
+          value = UnquotedValue(value)
+          processValue(value)
+
         else:
-          if typ in ('NULL', 'UNKNOWN', 'SAVE_FRAME_REF', 'STRING'):
-            # Set to 'UnquotedValue string subtype
-            value = UnquotedValue(value)
+          func = processFunctions[typ]
+
+          if func is None:
+
+            if typ == TOKEN_SAVE_FRAME:
+              # save_ string
+              self._closeSaveFrame(value)
+              if len(value) > 5:
+                self._openSaveFrame(value)
+
+            elif typ in (TOKEN_BAD_CONSTRUCT, TOKEN_BAD_TOKEN):
+              self._processBadToken(value, typ)
+
+            elif typ == TOKEN_SQUARE_BRACKET:
+              if self.allowSquareBracketStrings:
+                processValue(UnquotedValue(value))
+              else:
+                self._processBadToken(value, typ)
+
+            else:
+              raise StarSyntaxError("Unknown token type: %s" % typ)
           else:
-            pass
-            assert (typ in ('SQUOTE_STRING', 'DQUOTE_STRING', 'MULTILINE')), "Unknown type string: %s" % typ
-          self.processValue(value)
+            func(value)
+
+        # # Start with most common tags:
+        # if typ in unquotedValueTags:
+        #   value = UnquotedValue(value)
+        #   self.processValue(value)
+        #
+        # elif typ in quotedValueTags:
+        #   self.processValue(value)
+        #
+        # elif typ == TOKEN_DATA_NAME:
+        #   self.processDataName(value)
+        #
+        # elif typ == TOKEN_LOOP:
+        #   self._openLoop(value)
+        # elif typ == TOKEN_LOOP_STOP:
+        #     self._closeLoop(value)
+        # elif typ == TOKEN_SAVE_FRAME:
+        #   # save_ string
+        #   self._closeSaveFrame(value)
+        #   if value.lower() != 'save_':
+        #     self._openSaveFrame(value)
+        # elif typ == TOKEN_COMMENT:
+        #   self._processComment(value)
+        # elif typ == TOKEN_GLOBAL:
+        #   self._processGlobal(value)
+        # elif typ == TOKEN_DATA_BLOCK:
+        #   self._processDataBlock(value)
+        # elif typ in (TOKEN_BAD_CONSTRUCT, TOKEN_BAD_TOKEN):
+        #   self._processBadToken(value, typ)
+        # elif typ == TOKEN_SQUARE_BRACKET:
+        #   if self.allowSquareBracketStrings:
+        #     self.processValue(UnquotedValue(value))
+        #   else:
+        #     self._processBadToken(value, typ)
+        # else:
+        #   raise StarSyntaxError("Unknown token type: %s" % typ)
 
       # End of data - clean up stack
       if isinstance(stack[-1], str):
         raise StarSyntaxError(self._errorMessage("File ends with item name", value))
 
-      if isinstance(stack[-1], Loop):
+      if isinstance(stack[-1], list):
         self._closeLoop('<End-of-File>')
 
       if isinstance(stack[-1], SaveFrame):

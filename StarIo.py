@@ -39,6 +39,11 @@ import os
 import typing
 
 from . import GenericStarParser
+NULLSTRING = GenericStarParser.NULLSTRING
+TRUESTRING = GenericStarParser.TRUESTRING
+FALSESTRING = GenericStarParser.FALSESTRING
+UNKNOWNSTRING = GenericStarParser.UNKNOWNSTRING
+UnquotedValue = GenericStarParser.UnquotedValue
 
 # # Translations from internal values to framecode-compatible strings
 # replacementCharacter = '`'
@@ -382,13 +387,15 @@ class _StarDataConverter:
 
       self.stack.append(tag)
 
+      #
       if isinstance(value, str):
-        value = self.convertValue(value, category=lowerCaseCategory, tag=tag)
+        if isinstance(value, UnquotedValue):
+          value = self.convertValue(value, category=lowerCaseCategory, tag=tag)
         objname = tag[len(prefix):]
         newSaveFrame.addItem(objname, value)
 
       elif isinstance(value, GenericStarParser.Loop):
-        if tag == value.columns[0]:
+        if tag == value._columns[0]:
           # Only add loop on first appearance
           nmrLoop = self.convertLoop(value)
           newSaveFrame.addItem(nmrLoop.name, nmrLoop)
@@ -401,7 +408,7 @@ class _StarDataConverter:
 
     self.stack.append(loop)
 
-    columns = loop.columns
+    columns = loop._columns
     commonPrefix = os.path.commonprefix(columns)
     if len(commonPrefix.split('.', 1)) != 2:
       self.raiseValidationError(
@@ -450,7 +457,9 @@ class _StarDataConverter:
     newLoop = NmrLoop(category, columns)
     ff = self.convertValue #convertValue(value, category=lowerCaseCategory, tag=tag)
     for row in loop.data:
-      values = [ff(x, category, columns[ii]) for ii,x in enumerate(row.values()) ]
+      values = [ff(x, category, columns[ii]) if isinstance(x, UnquotedValue) else x
+                for ii,x in enumerate(row.values())
+               ]
       newLoop.newRow(values)
 
     #
@@ -458,41 +467,42 @@ class _StarDataConverter:
     return newLoop
 
   def convertValue(self, value, category=None, tag=None):
-    """NB category and tag are needed if  we want to use self.specification"""
+    """Convert unquoted string value."""
 
-    if self.specification:
-      # Add specification-dependent processing here
-      #
-      return value
+    # assert isinstance(value, GenericStarParser.UnquotedValue)
 
-    if isinstance(value, GenericStarParser.UnquotedValue):
-      # Convert special values
-      if value == GenericStarParser.NULLSTRING :
-        # null  value
-        value = None
-      elif value == GenericStarParser.TRUESTRING:
-        # Boolean True
-        value = True
-      elif value == GenericStarParser.FALSESTRING:
-        # Boolean False
-        value = False
-      elif value == GenericStarParser.UNKNOWNSTRING:
-        value = None
-      elif value[0] == '$':
-        # SaveFrame reference
-        value = value[1:]
-      else:
-        if not tag[-5:] in ('_code', '_name'):
-          # HACK - tags ending in '_code' or '_name' are assumed to be string type
-          # This takes care of e.g. 'sequence_code'
-          # that often might evaluate to a number otherwise
+    # if self.specification:
+    #   # Add specification-dependent processing here
+    #   #
+    #   return value
+
+    # Convert special values
+    if value == NULLSTRING :
+      # null  value
+      value = None
+    elif value == TRUESTRING:
+      # Boolean True
+      value = True
+    elif value == FALSESTRING:
+      # Boolean False
+      value = False
+    elif value == UNKNOWNSTRING:
+      value = None
+    elif value[0] == '$':
+      # SaveFrame reference
+      value = value[1:]
+    else:
+      if not tag[-5:] in ('_code', '_name'):
+        # HACK - tags ending in '_code' or '_name' are assumed to be string type
+        # This takes care of e.g. 'sequence_code'
+        # that often might evaluate to a number otherwise
+        try:
+          value = int(value)
+        except ValueError:
           try:
-            value = int(value)
+            value = float(value)
           except ValueError:
-            try:
-              value = float(value)
-            except ValueError:
-              pass
+            pass
     #
     return value
 
