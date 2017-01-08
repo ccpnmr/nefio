@@ -306,7 +306,7 @@ class StarContainer(NamedOrderedDict):
           lines.append(obj.toString(indent=indent, separator=separator))
 
       else:
-        lines.append(itemFormat % (tag, valueToString(obj)))
+        lines.append(itemFormat % (tag, valueToStarString(obj)))
     #
     return ''.join(lines)
 
@@ -539,10 +539,10 @@ class Loop:
 
       # First convert to strings to get correct columns widths
       if isinstance((data[0]), OrderedDict):
-        data = [[valueToString(y) for y in list(x.values())] for x in self.data]
+        data = [[valueToStarString(y) for y in list(x.values())] for x in self.data]
       else:
         # Must be a sequence of some kind. This will break for non-ordered dicts
-        data = [[valueToString(y) for y in x] for x in self.data]
+        data = [[valueToStarString(y) for y in x] for x in self.data]
 
       columnWidths = [max(len(x) for x in col) for col in zip(*data)]
       for row in data:
@@ -556,7 +556,7 @@ class Loop:
     return ''.join(lines)
 
 
-def valueToString(value, quoteNumberStrings=False):
+def valueToStarString(value, quoteNumberStrings=False):
   """ Convert value to properly quoted STAR string
 
   if quoteNumberStrings, strings that evaluate to a float (e.g. '1', '2.7e5', ...)
@@ -639,7 +639,6 @@ def valueToString(value, quoteNumberStrings=False):
         value = '\n;%s\n; '  % value
     #
     return value
-
 
 
 class GeneralStarParser:
