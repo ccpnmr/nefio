@@ -1007,6 +1007,7 @@ class GeneralStarParser:
         # typ = tk.type
         # value = tk.value
 
+
         if typ in unquotedValueTags:
           value = UnquotedValue(value)
           processValue(value)
