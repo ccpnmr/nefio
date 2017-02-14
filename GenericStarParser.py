@@ -546,8 +546,11 @@ class Loop:
 
       columnWidths = [max(len(x) for x in col) for col in zip(*data)]
       for row in data:
+        ll = list('%-*s' % (wdth, row[ii]) for ii,wdth in enumerate(columnWidths))
+        # Remove trailing spaces from last column:
+        ll[-1] = ll[-1].rstrip()
         lines.append(lineFormat %
-          separator.join('%-*s' % (wdth, row[ii]) for ii,wdth in enumerate(columnWidths))
+          separator.join(ll)
         )
 
     # Add stop_
