@@ -1,6 +1,12 @@
 """I/O for NEF and NmrStar formats
 
 """
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -42,7 +48,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import keyword
 import os
-import typing
+import string
 
 from . import GenericStarParser
 NULLSTRING = GenericStarParser.NULLSTRING
@@ -51,57 +57,25 @@ FALSESTRING = GenericStarParser.FALSESTRING
 UNKNOWNSTRING = GenericStarParser.UNKNOWNSTRING
 UnquotedValue = GenericStarParser.UnquotedValue
 
-# # Translations from internal values to framecode-compatible strings
-# replacementCharacter = '`'
-# _translationDict = {
-#   '#':'?', '"':'?', "'":'?'
-# }
-# for indx in range(128):
-#   char = chr(indx)
-#   if char.isspace:
-#     # replace space characters with '_'
-#     _translationDict[char] = '_'
-#   elif not char.isprintable():
-#     _translationDict[char] = '?'
-# for index in range(128,256):
-#   _translationDict[chr(indx)] =
-# strToFramecode = str.maketrans(_translationDict)
-
-# Make to-=ascii mapping at byte level'
-# Space and unprintable characters map to '_'
-# Characters outside the ascii range and #'" map to '?'
-#
-# NBNB this could be done better (more readable) with custom mappings
-#
-_replaceSpaceWithByte = ord('_')
-_replaceWithByte = ord('?')
-_b2 = bytearray(range(256))
-for ii in range(128):
-  _char = chr(ii)
-  if _char.isspace():
-    _b2[ii] = _replaceSpaceWithByte
-  elif not _char.isprintable():
-    _b2[ii] = _replaceSpaceWithByte
-for _char in ('#', '"', "'"):
-  _b2[ord(_char)] = _replaceWithByte
-for ii in range(128,256):
-  _b2[ii] = _replaceWithByte
-latin_1_to_framecode_translator = bytes.maketrans(bytearray(range(256)), _b2)
-
+# Make target string (translator) for mapping, to work in Python 2 and 3 both
+# Unprintable characters map to '_', bytes above 128 map to '?'
+ll = 33 * ['_'] + list(chr(x) for x in range(33, 127)) + ['_'] + 128 * ['?']
+# "'# (double quote, single quote, and pound sign) map to '?'
+ll[34] = ll[35] =  ll[39] = '?'
+latin_1_to_framecode_translator = ''.join(ll)
 
 def string2FramecodeString(text):
 
-  # Get 8-bit bytes, replacing values >255 with ord('?')
-  bts = text.encode('latin_1', 'replace')
+  # Replace code points outside latin-1 range (more than one byte)  with '?'
+  result = text.encode('latin_1', 'replace').decode('latin_1')
 
-  # Translate bytes, using preset translator
-  bts2 = bts.translate(latin_1_to_framecode_translator)
+  # Translate string, using preset translator
+  result = result.translate(latin_1_to_framecode_translator)
+  #
+  return result
 
-  # convert back to string - all bytes are ascii, so no errors can occur
-  return str(bts2.decode('ascii'))
 
-
-def parseNmrStar(text:str, mode='standard'):
+def parseNmrStar(text, mode='standard'):
   """load NMRSTAR file"""
   dataExtent = GenericStarParser.parse(text, mode)
   converter = _StarDataConverter(dataExtent)
@@ -110,7 +84,7 @@ def parseNmrStar(text:str, mode='standard'):
   #
   return result
 
-def parseNef(text:str, mode='standard'):
+def parseNef(text, mode='standard'):
   """load NEF from string"""
 
   dataExtent = GenericStarParser.parse(text, mode)
@@ -120,7 +94,7 @@ def parseNef(text:str, mode='standard'):
   #
   return result
 
-def parseNmrStarFile(fileName:str, mode:str='standard', wrapInDataBlock:bool=False):
+def parseNmrStarFile(fileName, mode='standard', wrapInDataBlock=False):
   """parse NMRSTAR from file"""
   text = open(fileName).read()
   if wrapInDataBlock and 'save_' in text and not 'data_' in text:
@@ -132,7 +106,7 @@ def parseNmrStarFile(fileName:str, mode:str='standard', wrapInDataBlock:bool=Fal
   #
   return result
 
-def parseNefFile(fileName:str, mode:str='standard', wrapInDataBlock:bool=False):
+def parseNefFile(fileName, mode='standard', wrapInDataBlock=False):
   """parse NEF from file"""
   text = open(fileName).read()
   if wrapInDataBlock and 'save_' in text and not 'data_' in text:
@@ -151,12 +125,12 @@ class NmrDataExtent(GenericStarParser.DataExtent):
   """Top level container (OrderedDict) for NMRSTAR/NEF object tree"""
   pass
 
-# We insert these afterwards as we want the functions at the top of the file
-# but can only annotate after DataExtent is created
-parseNef.__annotations__['return'] = NmrDataExtent
-parseNefFile.__annotations__['return'] = NmrDataExtent
-parseNmrStar.__annotations__['return'] = NmrDataExtent
-parseNmrStarFile.__annotations__['return'] = NmrDataExtent
+# # We insert these afterwards as we want the functions at the top of the file
+# # but can only annotate after DataExtent is created
+# parseNef.__annotations__['return'] = NmrDataExtent
+# parseNefFile.__annotations__['return'] = NmrDataExtent
+# parseNmrStar.__annotations__['return'] = NmrDataExtent
+# parseNmrStarFile.__annotations__['return'] = NmrDataExtent
 
 class NmrLoop(GenericStarParser.Loop):
   """Loop for NMRSTAR/NEF object tree
@@ -166,12 +140,12 @@ class NmrLoop(GenericStarParser.Loop):
   break - use the newRow function."""
 
   @property
-  def category(self) -> str:
+  def category(self):
     """Loop category tag - synonym for name (unlike the case of SaveFrame)"""
     return self.name
 
   @property
-  def tagPrefix(self) -> str:
+  def tagPrefix(self):
     """Prefix to use before item tags on output"""
     return '_%s.' % self.name
 
@@ -183,11 +157,11 @@ class NmrSaveFrame(GenericStarParser.SaveFrame):
     self.category = category
 
   @property
-  def tagPrefix(self) -> str:
+  def tagPrefix(self):
     """Prefix to use before item tags on output"""
     return '_%s.' % self.category
 
-  def newLoop(self, name, columns) -> NmrLoop:
+  def newLoop(self, name, columns):
     """Make new NmrLoop and add it to the NmrSaveFrame"""
     loop = NmrLoop(name, columns)
     self.addItem(name, loop)
@@ -196,7 +170,7 @@ class NmrSaveFrame(GenericStarParser.SaveFrame):
 class NmrDataBlock(GenericStarParser.DataBlock):
   """DataBlock (OrderedDict)for NMRSTAR/NEF object tree"""
 
-  def newSaveFrame(self, name:str, category:str) -> NmrSaveFrame:
+  def newSaveFrame(self, name, category):
     """Make new NmrSaveFrame and add it to the DataBlock"""
     name = string2FramecodeString(name)
     saveFrame = NmrSaveFrame(name, category=category)
@@ -205,7 +179,7 @@ class NmrDataBlock(GenericStarParser.DataBlock):
     saveFrame.addItem('sf_framecode', name)
     return saveFrame
 
-  def addSaveFrame(self, saveFrame:NmrSaveFrame):
+  def addSaveFrame(self, saveFrame):
     """Add existing NmrSaveFrame to the DataBlock"""
     self.addItem(saveFrame['sf_framecode'], saveFrame)
 
@@ -222,7 +196,7 @@ class _StarDataConverter:
 
   validFileTypes = ('nef', 'star')
 
-  def __init__(self, dataExtent: GenericStarParser.DataExtent, fileType='star',
+  def __init__(self, dataExtent, fileType='star',
                specification=None, convertColumnNames=True):
 
     # Set option settings
@@ -522,7 +496,8 @@ class _StarDataConverter:
     raise StarValidationError(self._errorMessage(msg))
 
 
-def splitNefSequence(rows:typing.Sequence[dict]) -> typing.List[typing.List[dict]]:
+# def splitNefSequence(rows:typing.Sequence[dict]) -> typing.List[typing.List[dict]]:
+def splitNefSequence(rows):
   """Split a sequence of nef_sequence dicts assumed to belong to the same chain
   into a list of lists of sequentially linked stretches following the NEF rules
 

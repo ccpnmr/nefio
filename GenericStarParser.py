@@ -94,6 +94,14 @@ either tuples, lists, or OrderedDicts, and accept an optional tag prefix for
 DataBlocks, SaveFrames, and Loops, to prepend to item and column names.
 
 """
+
+# NB must be Python 2.7 and 3.x compatible
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -125,7 +133,12 @@ import sys
 import re
 import math
 from collections import OrderedDict
-from itertools import zip_longest
+try:
+  # Python 3
+  from itertools import zip_longest
+except:
+  # python 2.7
+  from itertools import izip_longest as zip_longest
 from .StarTokeniser import getTokenIterator
 
 from .StarTokeniser import TOKEN_MULTILINE
@@ -214,7 +227,7 @@ def parse(text, mode='standard'):
   return GeneralStarParser(text, **options).parse()
 
 
-def parseFile(fileName:str, mode:str='standard'):
+def parseFile(fileName, mode='standard'):
   """load generic STAR file"""
 
   text = open(fileName).read()
@@ -251,7 +264,7 @@ class NamedOrderedDict(OrderedDict):
   def __repr__(self):
     return '%s(%s, name=%s)' % (self.__class__.__name__, list(tt for tt in self.items()), self.name)
 
-  def addItem(self, tag:str, value):
+  def addItem(self, tag, value):
     if tag in self:
       raise ValueError("%s: duplicate key name %s" % (self, tag))
     else:
@@ -260,7 +273,7 @@ class NamedOrderedDict(OrderedDict):
 class StarContainer(NamedOrderedDict):
   """DataBlock or SaveFrame containing items and loops"""
 
-  def multiColumnValues(self, columns) -> list:
+  def multiColumnValues(self, columns):
     """get tuple of orderedDict of values for columns.
     Will work whether columns are in a loop or single values
     If columns match a single loop or nothing, return the loop data.
@@ -283,7 +296,7 @@ class StarContainer(NamedOrderedDict):
       # No column matches a loop. return a single dict
       return (valueDict,)
 
-  def  _contentToString(self, indent:str=_defaultIndent, separator:str=_defaultSeparator) -> str:
+  def  _contentToString(self, indent=_defaultIndent, separator=_defaultSeparator):
     """Returns content of either DataBlock or SaveFrame"""
 
     lines = []
@@ -321,14 +334,15 @@ class DataExtent(NamedOrderedDict):
   def __init__(self, name='Root'):
     super(DataExtent, self).__init__(name=name)
 
-  def toString(self, indent:str='', separator:str=_defaultSeparator) -> str:
+  def toString(self, indent='', separator=_defaultSeparator):
     blockSeparator = '\n\n\n\n'
     return blockSeparator.join(x.toString(indent=indent, separator=separator) for x in self.values())
 
-# We insert these afterwards as we want the functions at the top of the file
-# but can only annotate after DataExtent is created
-parse.__annotations__['return'] = DataExtent
-parseFile.__annotations__['return'] = DataExtent
+# # Not Python 2 compatible
+# # We insert these afterwards as we want the functions at the top of the file
+# # but can only annotate after DataExtent is created
+# parse.__annotations__['return'] = DataExtent
+# parseFile.__annotations__['return'] = DataExtent
 
 class DataBlock(StarContainer):
   """DataBlock for general STAR object tree"""
@@ -338,7 +352,7 @@ class DataBlock(StarContainer):
   tagPrefix = None
 
 
-  def toString(self, indent:str='', separator:str=_defaultSeparator) -> str:
+  def toString(self, indent='', separator=_defaultSeparator):
 
     name = self.name
     if not name.startswith('data_'):
@@ -355,7 +369,7 @@ class SaveFrame(StarContainer):
   tagPrefix = None
 
 
-  def toString(self, indent:str=_defaultIndent, separator:str=_defaultSeparator) -> str:
+  def toString(self, indent=_defaultIndent, separator=_defaultSeparator):
 
 
     name = self.name
@@ -368,7 +382,7 @@ class SaveFrame(StarContainer):
 class LoopRow(OrderedDict):
   """Loop row - OrderedDict with additional functionality"""
 
-  def _get(self, name:str):
+  def _get(self, name):
     """Returns value of attribute 'name', or None if attribute is not defined
 
     Will treat a series of attributes 'foo_1', 'foo_2', 'foo_3', etc. as a single
@@ -381,7 +395,7 @@ class LoopRow(OrderedDict):
     #
     return self.get(name)
 
-  def _set(self, name:str, value:object):
+  def _set(self, name, value):
     """Sets attribute 'name' to value
 
     Will treat a series of attributes 'foo_1', 'foo_2', 'foo_3', etc. as a single
@@ -417,7 +431,7 @@ class Loop:
   # Can be set in subclass instances.
   tagPrefix = None
 
-  def __init__(self, name:str=None, columns:list=None):
+  def __init__(self, name=None, columns=None):
 
     self.name = name
     self.data = []
@@ -432,11 +446,11 @@ class Loop:
     return '<%s:%s>' % (self.__class__.__name__, self.name)
 
   @property
-  def columns(self) -> list:
+  def columns(self):
     """Column names"""
     return tuple(self._columns)
 
-  def newRow(self, values=None) -> LoopRow:
+  def newRow(self, values=None):
     """Add new row, initialised from values"""
 
     # Use internal attribute for speed, columns do not change
@@ -460,7 +474,7 @@ class Loop:
     self.data.append(row)
     return row
 
-  # def _addValue(self, value:str):
+  # def _addValue(self, value):
   #   """Put value in next free slot in current row
   #   Add new row if necessary"""
   #   data = self.data
@@ -488,7 +502,7 @@ class Loop:
   #   # #
   #   # row[self._columns[index]] = value
 
-  def addColumn(self, value:str, extendData=False):
+  def addColumn(self, value, extendData=False):
     columns = self._columns
     if value in columns:
       raise ValueError("%s: duplicate column name: %s" % (self, value))
@@ -502,7 +516,7 @@ class Loop:
     else:
       columns.append(value)
 
-  def removeColumn(self, value:str, removeData=False):
+  def removeColumn(self, value, removeData=False):
     """Remove column from loop. Will NOT work properly if called during parsing."""
     columns = self._columns
     if value not in columns:
@@ -517,7 +531,7 @@ class Loop:
     else:
       columns.remove(value)
 
-  def toString(self, indent:str=_defaultIndent, separator:str=_defaultSeparator) -> str:
+  def toString(self, indent=_defaultIndent, separator=_defaultSeparator):
     """Stringifier function for loop.
 
     Accepts (subtypes of) Loop with data as sequence of rows,
@@ -680,8 +694,8 @@ class GeneralStarParser:
 
   """
 
-  def __init__(self, text:str, enforceSaveFrameStop:bool=True, enforceLoopStop:bool=False,
-               padIncompleteLoops:bool=False, allowSquareBracketStrings=False, lowerCaseTags=True):
+  def __init__(self, text, enforceSaveFrameStop=True, enforceLoopStop=False,
+               padIncompleteLoops=False, allowSquareBracketStrings=False, lowerCaseTags=True):
 
     self.enforceSaveFrameStop = enforceSaveFrameStop
     self.enforceLoopStop = enforceLoopStop
@@ -797,11 +811,11 @@ class GeneralStarParser:
       loop.addColumn(value)
       stack[-3].addItem(value, loop)
 
-  def _processComment(self, value:str):
+  def _processComment(self, value):
     # Comments are ignored
    return
 
-  def _processGlobal(self, value:str):
+  def _processGlobal(self, value):
     if self.globalsCounter:
       name = "global_%s" % self.globalsCounter
       self.globalsCounter += 1
@@ -810,7 +824,7 @@ class GeneralStarParser:
       name = "global_"
     self._processDataBlock(name)
 
-  def _processDataBlock(self, value:str):
+  def _processDataBlock(self, value):
 
     stack = self.stack
 
@@ -848,7 +862,7 @@ class GeneralStarParser:
       raise StarSyntaxError(self._errorMessage("Parser error at token %s" % value, value))
 
 
-  def _closeSaveFrame(self, value:str):
+  def _closeSaveFrame(self, value):
 
     stack =  self.stack
 
@@ -881,7 +895,7 @@ class GeneralStarParser:
       if lowerValue == 'save_':
         raise StarSyntaxError(self._errorMessage("'%s' found out of context" % value, value))
 
-  def _openSaveFrame(self, value:str):
+  def _openSaveFrame(self, value):
 
     stack = self.stack
 
@@ -895,7 +909,7 @@ class GeneralStarParser:
         self._errorMessage("saveframe start out of context: %s" % value, value)
       )
 
-  # def _openLoop(self, value:str):
+  # def _openLoop(self, value):
   #
   #   stack = self.stack
   #
@@ -922,7 +936,7 @@ class GeneralStarParser:
   #   else:
   #     raise StarSyntaxError(self._errorMessage("loop_ out of context", value))
 
-  def _openLoop(self, value:str):
+  def _openLoop(self, value):
 
     stack = self.stack
 
@@ -1133,7 +1147,7 @@ class GeneralStarParser:
     return template % (tags[:-1], tags[-1], ii+1, msg)#
 
 
-def extractMatchingNameSequence(name:str, matchNames:list) -> list:
+def extractMatchingNameSequence(name, matchNames):
   """Get list of matchNames matching 'name_1', 'name_2', ..., in order."""
 
   ll =[]

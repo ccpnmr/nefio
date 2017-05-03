@@ -1,6 +1,14 @@
+# encoding: utf-8
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 __copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2017"
 __credits__ = ("Wayne Boucher, Ed Brooksbank, Rasmus H Fogh, Luca Mureddu, Timothy J Ragan"
                "Simon P Skinner & Geerten W Vuister")
@@ -141,7 +149,8 @@ TOKEN_BAD_TOKEN        = 17
 
 #
 StarToken = collections.namedtuple('StarToken', ('type', 'value'))
-StarToken.__doc__ = "StarToken named tuple (with fields 'type', 'value') returned by the STAR token iterator"
+# StarToken.__doc__ = "StarToken named tuple (with fields 'type', 'value')"
+# "returned by the STAR token iterator"
 
 def getTokenIterator(text):
   """Iterator that returns an iterator over all STAR tokens in a generic STAR file"""

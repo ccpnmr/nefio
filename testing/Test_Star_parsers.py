@@ -36,21 +36,21 @@ from ccpn.util import Path
 
 TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
-def _loadGeneralFile(path:str):
+def _loadGeneralFile(path):
   usePath = path if path.startswith('/') else os.path.join(TEST_FILE_PATH, path)
   t0 = time.time()
   entry = GenericStarParser.parseFile(usePath) # 'lenient')
   print ("Parsing time %s for %s" % (time.time() - t0, path))
   return entry
 
-def _loadNmrStarFile(path:str):
+def _loadNmrStarFile(path):
   usePath = path if path.startswith('/') else os.path.join(TEST_FILE_PATH, path)
   t0 = time.time()
   entry = StarIo.parseNmrStarFile(usePath) # 'lenient')
   print ("Parsing time %s for %s" % (time.time() - t0, path))
   return entry
 
-def _loadNefFile(path:str):
+def _loadNefFile(path):
   usePath = path if path.startswith('/') else os.path.join(TEST_FILE_PATH, path)
   t0 = time.time()
   entry = StarIo.parseNefFile(usePath) # 'lenient')
