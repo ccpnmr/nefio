@@ -420,14 +420,15 @@ class _StarDataConverter:
       tag = ss[lenPrefix:]
 
       # Check for valid field names
-      if tag.startswith('_') or not tag.isidentifier():
+      if tag and not tag.isalpha():
         if self.convertColumnNames:
-          # make the name valid
           tag = ''.join(x if x.isalnum() else '_' for x in tag)
-          while tag.startswith('_'):
+          while tag and not tag[0].isalpha():
             tag = tag[1:]
         else:
-          raise ValueError("Invalid column name: %s" % ss)
+          raise ValueError("Invalid column name 1: %s" % ss)
+      if not tag:
+        raise ValueError("Invalid column name 2: %s" % ss)
 
       if keyword.iskeyword(tag):
         raise ValueError("column name (as modified) clashes with Python keyword: %s" % ss)
