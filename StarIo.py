@@ -473,7 +473,7 @@ class _StarDataConverter:
       # SaveFrame reference
       value = value[1:]
     else:
-      if not tag[-5:] in ('_code', '_name'):
+      if not (tag[-5:] in ('_code', '_name') or '_code_' in tag or '_name_' in tag):
         # HACK - tags ending in '_code' or '_name' are assumed to be string type
         # This takes care of e.g. 'sequence_code'
         # that often might evaluate to a number otherwise
