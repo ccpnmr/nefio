@@ -33,6 +33,9 @@ import sys
 from . import GenericStarParser
 from . import StarIo
 
+# NB - not used and not currently functional.
+# May be upgraded later, for specification-aware NEF I/O
+
 
 def getCcpnSpecification(filePath) -> StarIo.NmrDataBlock:
   """Get NEF specification summary with ccpn-specific additions"""
