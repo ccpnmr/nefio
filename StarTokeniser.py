@@ -113,14 +113,6 @@ _REGEX = r"""(?xmi) # $Revision$  # No 'u' flag for perl 5.8.8/RHEL5 compatibili
 # Compiled form of _REGEX
 _star_pattern = re.compile(_REGEX, re.UNICODE)
 
-# # Names of token types in order matching the group numbers returned from _REGEX
-# # NB must be kept synchronised with _REGEX
-# _DESCRIPTIVE_TOKEN_TYPES = [
-#         "", "MULTILINE", "COMMENT", "GLOBAL", "SAVE_FRAME", "SAVE_FRAME_REF",
-#         "LOOP_STOP", "DATA_BLOCK", "LOOP", "BAD_CONSTRUCT", "DATA_NAME", "SQUOTE_STRING",
-#         "DQUOTE_STRING", "NULL", "UNKNOWN", "SQUARE_BRACKET", "STRING", "BAD_TOKEN" ]
-
-
 # Token types. NB numbers must be synced to regex - these are used directly!!!
 TOKEN_MULTILINE        = 1
 TOKEN_COMMENT          = 2
@@ -143,12 +135,12 @@ TOKEN_BAD_TOKEN        = 17
 # Rasmus Fogh, CCPN project 5/2/2016
 # # Modified Tokeniser to
 # - use namedtuples instead of custom objects
-# - to use descriptive token types instead of integer codes. LATER UNDONE
 # - to use a string input instead of a memory map (which gave string/byte conflict errors)
 # - to wrap the regex iterator without a wrapping class.
 
 #
 StarToken = collections.namedtuple('StarToken', ('type', 'value'))
+# Removed for Python 2 compatibility:
 # StarToken.__doc__ = "StarToken named tuple (with fields 'type', 'value')"
 # "returned by the STAR token iterator"
 

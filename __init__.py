@@ -1,4 +1,16 @@
-"""Module Documentation here
+"""Star, Cif, and NEF I/O.
+
+Files are converted to and from a tree of nested objects (essentially enhanced, ordered dictionaries)
+
+The GenericStarParser.py will work for any valid Star file; see this file
+for the precise reading and writing behaviour. Parsing comes in several modes, depending on how
+strictly the STAR standard is enforced.
+
+NmrStar and NEF files have a more restricted syntax, with all items and loops contained within
+saveframes, and with saveframe and loop tags beginning with a prefix matching the saveframe and loop
+category. The StarIo.py code is used for these files; it converts the output of the GenericStarParser
+into a simpler object tree that makes use of these restrictions, strips mandatory tag prefixes,
+and converts strings to numerical values with some limited heuristics.
 
 """
 #=========================================================================================

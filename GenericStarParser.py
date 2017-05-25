@@ -4,11 +4,16 @@ with DataExtent, DataBlock, SaveFrame, and Loop objects.
 Additional support for distinguishing between None, True, False, and int/float values
 and the strings that match their representations.
 
+For behaviour better suited to NmrStar and NEf see ./StarIo.py
+
 Usage:
 
-parse(text, mode) to parse a text representation
+parse(text, mode) to parse a text representation to nested objects
 
 parseFile(fileName, mode) to load and parse a file
+
+starObject.toString() will convert any object in the object structure,
+complete with contents, to a string that can then be written to file.
 
 
 Reading behaviour
@@ -48,7 +53,7 @@ Items are entered as a string key - string value pair.
 
 All tags are preserved 'as is' (i.e. without stripping leading '_', 'data_', or 'save_'),
 basically to avoid the theoretical risk that a SaveFrame name might clash with
-an item name or loop column, or a DataBLock with a Global. Duplicate tags raise an error.
+an item name or loop column, or a DataBlock with a Global. Duplicate tags raise an error.
 
 Quoted values are returned as str,
 whereas unquoted values are returned as a str subtype UnquotedValue(str)
@@ -228,7 +233,7 @@ def parse(text, mode='standard'):
 
 
 def parseFile(fileName, mode='standard'):
-  """load generic STAR file"""
+  """load generic STAR file and parse the contents"""
 
   text = open(fileName).read()
   return parse(text, mode=mode)
@@ -297,7 +302,7 @@ class StarContainer(NamedOrderedDict):
       return (valueDict,)
 
   def  _contentToString(self, indent=_defaultIndent, separator=_defaultSeparator):
-    """Returns content of either DataBlock or SaveFrame"""
+    """Returns content of either DataBlock or SaveFrame as a string"""
 
     lines = []
 
@@ -338,6 +343,9 @@ class DataExtent(NamedOrderedDict):
     blockSeparator = '\n\n\n\n'
     return blockSeparator.join(x.toString(indent=indent, separator=separator) for x in self.values())
 
+# An object that cannot appear inside a Star file. Used as sentinel
+sentinel = DataExtent()
+
 # # Not Python 2 compatible
 # # We insert these afterwards as we want the functions at the top of the file
 # # but can only annotate after DataExtent is created
@@ -353,6 +361,7 @@ class DataBlock(StarContainer):
 
 
   def toString(self, indent='', separator=_defaultSeparator):
+    """Convert DataBlock to string, for writing"""
 
     name = self.name
     if not name.startswith('data_'):
@@ -370,7 +379,7 @@ class SaveFrame(StarContainer):
 
 
   def toString(self, indent=_defaultIndent, separator=_defaultSeparator):
-
+    """Convert SaveFrame to string, for writing"""
 
     name = self.name
     if not name.startswith('save_'):
@@ -474,62 +483,35 @@ class Loop:
     self.data.append(row)
     return row
 
-  # def _addValue(self, value):
-  #   """Put value in next free slot in current row
-  #   Add new row if necessary"""
-  #   data = self.data
-  #
-  #   index = self._columnIndex
-  #   if index == 0:
-  #     row = self.newRow()
-  #   else:
-  #     row = data[-1]
-  #
-  #   row[self._columns[index]] = value
-  #
-  #   index += 1
-  #   if index >= self._columnCount:
-  #     self._columnIndex = 0
-  #   else:
-  #     self._columnIndex = index
-  #
-  #   # if data and None in data[-1].values():
-  #   #   row = data[-1]
-  #   #   index = list(row.values()).index(None)
-  #   # else:
-  #   #   row = self.newRow()
-  #   #   index = 0
-  #   # #
-  #   # row[self._columns[index]] = value
-
-  def addColumn(self, value, extendData=False):
+  def addColumn(self, columnName, paddingValue=sentinel):
+    """Add new column to loop. if paddingValue is set, including to None, rows with None"""
     columns = self._columns
-    if value in columns:
-      raise ValueError("%s: duplicate column name: %s" % (self, value))
+    if columnName in columns:
+      raise ValueError("%s: duplicate column name: %s" % (self, columnName))
     elif self.data:
-      if extendData:
-        columns.append(value)
-        for row in self.data:
-          row[value] = None
-      else:
+      if paddingValue is sentinel:
         raise ValueError("%s: Cannot add columns when loop contains data" % self)
+      else:
+        columns.append(columnName)
+        for row in self.data:
+          row[columnName] = paddingValue
     else:
-      columns.append(value)
+      columns.append(columnName)
 
-  def removeColumn(self, value, removeData=False):
+  def removeColumn(self, columnName, removeData=False):
     """Remove column from loop. Will NOT work properly if called during parsing."""
     columns = self._columns
-    if value not in columns:
-      raise ValueError("%s: column named %s does not exist" % (self, value))
+    if columnName not in columns:
+      raise ValueError("%s: column named %s does not exist" % (self, columnName))
     elif self.data:
       if removeData:
         for row in self.data:
-          del row[value]
-        columns.remove(value)
+          del row[columnName]
+        columns.remove(columnName)
       else:
         raise ValueError("%s: Cannot remove columns when loop contains data" % self)
     else:
-      columns.remove(value)
+      columns.remove(columnName)
 
   def toString(self, indent=_defaultIndent, separator=_defaultSeparator):
     """Stringifier function for loop.
@@ -758,38 +740,6 @@ class GeneralStarParser:
       # empty loops appear here. We allow them, but that could change
       pass
 
-  # def _closeLoop(self, value):
-  #   loop = self.stack[-1]
-  #   if not isinstance(loop, Loop):
-  #     raise StarSyntaxError(self._errorMessage("Loop stop_ %s outside loop" % value, value))
-  #
-  #   data = loop.data
-  #   if not loop._columns:
-  #     raise StarSyntaxError(self._errorMessage(" loop lacks column names" , value))
-  #
-  #   if data:
-  #     row = data[-1]
-  #     if None in row.values():
-  #       missingValueCount = len([x for x in row.values() if x is None])
-  #       if self.padIncompleteLoops:
-  #         print("WARNING Token %s: %s in %s is missing %s values. Last row was: %s"
-  #               % (self.counter, loop, self.stack[-2], missingValueCount, data[-1]))
-  #         # for row in data:
-  #         #   print( ' - ', *row)
-  #         for key,val in row.items():
-  #           if val is None:
-  #             row[key] = NULLSTRING
-  #       else:
-  #         raise StarSyntaxError(
-  #           self._errorMessage("loop %s is missing %s values" % (loop, missingValueCount), value)
-  #         )
-  #
-  #   else:
-  #     # empty loops appear here. We allow them, but that could change
-  #     pass
-  #
-  #   self.stack.pop()
-
   def _addLoopField(self, value):
 
     stack = self.stack
@@ -813,7 +763,7 @@ class GeneralStarParser:
 
   def _processComment(self, value):
     # Comments are ignored
-   return
+    return
 
   def _processGlobal(self, value):
     if self.globalsCounter:
@@ -909,33 +859,6 @@ class GeneralStarParser:
         self._errorMessage("saveframe start out of context: %s" % value, value)
       )
 
-  # def _openLoop(self, value):
-  #
-  #   stack = self.stack
-  #
-  #   # Terminate open elements
-  #   if isinstance(stack[-1], Loop):
-  #     if not stack[-1].data:
-  #       # NB, nested loops are not supported
-  #       raise StarSyntaxError(
-  #         self._errorMessage("Loop terminated by %s instead of stop_" % value, value)
-  #       )
-  #     elif self.enforceLoopStop:
-  #       raise StarSyntaxError(
-  #         self._errorMessage("Loop terminated by %s instead of stop_"%  value, value)
-  #       )
-  #     else:
-  #       # Close loop and pop it off the stack
-  #       self._closeLoop(value)
-  #
-  #   if isinstance(stack[-1], (SaveFrame, DataBlock)):
-  #     # NB Loop naming and adding to container is done when first column name is read
-  #     stack.append(Loop(name='loop_'))
-  #     stack.ppend(list())
-  #
-  #   else:
-  #     raise StarSyntaxError(self._errorMessage("loop_ out of context", value))
-
   def _openLoop(self, value):
 
     stack = self.stack
@@ -1027,9 +950,6 @@ class GeneralStarParser:
       for tk in self.tokeniser:
         self.counter += 1
         typ, value = tk
-        # typ = tk.type
-        # value = tk.value
-
 
         if typ in unquotedValueTags:
           value = UnquotedValue(value)
@@ -1060,41 +980,6 @@ class GeneralStarParser:
           else:
             func(value)
 
-        # # Start with most common tags:
-        # if typ in unquotedValueTags:
-        #   value = UnquotedValue(value)
-        #   self.processValue(value)
-        #
-        # elif typ in quotedValueTags:
-        #   self.processValue(value)
-        #
-        # elif typ == TOKEN_DATA_NAME:
-        #   self.processDataName(value)
-        #
-        # elif typ == TOKEN_LOOP:
-        #   self._openLoop(value)
-        # elif typ == TOKEN_LOOP_STOP:
-        #     self._closeLoop(value)
-        # elif typ == TOKEN_SAVE_FRAME:
-        #   # save_ string
-        #   self._closeSaveFrame(value)
-        #   if value.lower() != 'save_':
-        #     self._openSaveFrame(value)
-        # elif typ == TOKEN_COMMENT:
-        #   self._processComment(value)
-        # elif typ == TOKEN_GLOBAL:
-        #   self._processGlobal(value)
-        # elif typ == TOKEN_DATA_BLOCK:
-        #   self._processDataBlock(value)
-        # elif typ in (TOKEN_BAD_CONSTRUCT, TOKEN_BAD_TOKEN):
-        #   self._processBadToken(value, typ)
-        # elif typ == TOKEN_SQUARE_BRACKET:
-        #   if self.allowSquareBracketStrings:
-        #     self.processValue(UnquotedValue(value))
-        #   else:
-        #     self._processBadToken(value, typ)
-        # else:
-        #   raise StarSyntaxError("Unknown token type: %s" % typ)
 
       # End of data - clean up stack
       if isinstance(stack[-1], str):

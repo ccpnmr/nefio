@@ -1,5 +1,31 @@
-"""I/O for NEF and NmrStar formats
+"""I/O for NEF and NmrStar formats.
 
+The functions to use are
+
+and other STAR variants satisfying the following requirements:
+
+      - all plain tags in a saveframe start with a common prefix;
+      for NEF files this must be the '<sf_category>' followed by '.',
+      and the framecode value must start with the '<sf_category>' followed by underscore.
+
+      - All loop column names start with '<loopcategory>.'
+
+      - loopcategories share a namespace with tags within a saveframe
+
+      - DataBlocks can contain only saveframes.
+
+      - For NEF files the
+
+  Use the functions parseNmrStar, parseNef, parseNmrStarFile, parseNefFile
+
+   The 'File' functions take a file name and pass the file contents to corresponding parser.
+
+   The 'NmrStar' functions will read any Star file that satisfies the constraints above, while
+    the 'Nef' functions will also enforce the NEF=-specific constraints above
+
+
+  On reading tag prefixes ('_', 'save_', 'data_' are stripped,
+  as are the parts of tags before the first '.'
 """
 
 from __future__ import absolute_import
@@ -36,19 +62,12 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 # NB Assumes that file was parsed with lowercaseTags = True
 
-# Constraints on class hierarchy:
-# - all plain tags in a saveframe start with the '<sf_category>.'
-# - ALl loop column names start with '<loopcategory>.'
-# - loopcategories share a namespace with tags within a saveframe
-# - DataBlocks can contain only saveframes.
-# - tag prefixes ('_', 'save_', 'data_' are stripped
 
 
 # TODO NBNB some longer variable names;
 
 import keyword
 import os
-import string
 
 from . import GenericStarParser
 NULLSTRING = GenericStarParser.NULLSTRING
@@ -63,16 +82,6 @@ ll = 33 * ['_'] + list(chr(x) for x in range(33, 127)) + ['_'] + 128 * ['?']
 # "'# (double quote, single quote, and pound sign) map to '?'
 ll[34] = ll[35] =  ll[39] = '?'
 latin_1_to_framecode_translator = ''.join(ll)
-
-def string2FramecodeString(text):
-
-  # Replace code points outside latin-1 range (more than one byte)  with '?'
-  result = text.encode('latin_1', 'replace').decode('latin_1')
-
-  # Translate string, using preset translator
-  result = result.translate(latin_1_to_framecode_translator)
-  #
-  return result
 
 
 def parseNmrStar(text, mode='standard'):
@@ -95,7 +104,9 @@ def parseNef(text, mode='standard'):
   return result
 
 def parseNmrStarFile(fileName, mode='standard', wrapInDataBlock=False):
-  """parse NMRSTAR from file"""
+  """parse NMRSTAR from file
+
+  if wrapInDataBlock missing DataBlock start will be provided"""
   text = open(fileName).read()
   if wrapInDataBlock and 'save_' in text and not 'data_' in text:
     text = "data_dummy \n\n" + text
@@ -107,7 +118,9 @@ def parseNmrStarFile(fileName, mode='standard', wrapInDataBlock=False):
   return result
 
 def parseNefFile(fileName, mode='standard', wrapInDataBlock=False):
-  """parse NEF from file"""
+  """parse NEF from file
+
+  if wrapInDataBlock missing DataBlock start will be provided"""
   text = open(fileName).read()
   if wrapInDataBlock and 'save_' in text and not 'data_' in text:
     text = "data_dummy \n\n" + text
@@ -115,6 +128,16 @@ def parseNefFile(fileName, mode='standard', wrapInDataBlock=False):
   converter = _StarDataConverter(dataExtent, fileType='nef')
   converter.preValidate()
   result = converter.convert()
+  #
+  return result
+
+def string2FramecodeString(text):
+
+  # Replace code points outside latin-1 range (more than one byte)  with '?'
+  result = text.encode('latin_1', 'replace').decode('latin_1')
+
+  # Translate string, using preset translator
+  result = result.translate(latin_1_to_framecode_translator)
   #
   return result
 
@@ -497,7 +520,6 @@ class _StarDataConverter:
     raise StarValidationError(self._errorMessage(msg))
 
 
-# def splitNefSequence(rows:typing.Sequence[dict]) -> typing.List[typing.List[dict]]:
 def splitNefSequence(rows):
   """Split a sequence of nef_sequence dicts assumed to belong to the same chain
   into a list of lists of sequentially linked stretches following the NEF rules

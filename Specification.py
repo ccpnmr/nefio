@@ -33,7 +33,7 @@ import sys
 from . import GenericStarParser
 from . import StarIo
 
-# NB - not used and not currently functional.
+# TODO, This is aq DRAFT only - not used and not currently functional.
 # May be upgraded later, for specification-aware NEF I/O
 
 
