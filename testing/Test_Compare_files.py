@@ -104,6 +104,112 @@ class Test_Compare_Files(unittest.TestCase):
             break
 
   #=========================================================================================
+  # compare data blocks
+  #=========================================================================================
+
+  def addToList(self, inList, changeList, changeHeader, name):
+    if len(inList) > 0:
+      changeList.append(changeHeader+name+' : contains --> '+','.join(inList))
+    return changeList
+
+  def compareLoop(self
+                  , loop1:GenericStarParser.Loop
+                  , loop2:GenericStarParser.Loop
+                  , changeList=[]
+                  , changeHeader=''):
+    """
+    Compare two Loops
+    """
+    lSet = [bl for bl in loop1.columns]
+    rSet = [bl for bl in loop2.columns]
+    inLeft = set(lSet).difference(rSet)
+    dSet = set(lSet).intersection(rSet)
+    inRight = set(rSet).difference(lSet)
+
+    self.addToList(inLeft, changeList, changeHeader, loop1.name)
+    self.addToList(inRight, changeList, changeHeader, loop2.name)
+
+    if loop1.data and loop2.data:
+      for compName in dSet:
+        rowRange = min(len(loop1.data), len(loop2.data))
+        for rowIndex in range(rowRange):
+          if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
+            changeStr = '  COLDIFF: '\
+                        +changeHeader\
+                        +compName+' : '\
+                        +str(rowIndex)+' --> '\
+                        +str(loop1.data[rowIndex][compName])+' != '\
+                        +str(loop2.data[rowIndex][compName])
+
+            changeList.append(changeStr)
+
+  def compareSaveFrame(self
+                        , saveFrame1:GenericStarParser.SaveFrame
+                        , saveFrame2:GenericStarParser.SaveFrame
+                        , changeList=[]
+                        , changeHeader=''):
+    """
+    Compare two saveFrames, if they have the same name then check their contents
+    """
+    lSet = [None if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else saveFrame1[bl].name for bl in saveFrame1]
+    rSet = [None if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else saveFrame2[bl].name for bl in saveFrame2]
+    inLeft = set(lSet).difference(rSet).difference({None})
+    dSet = set(lSet).intersection(rSet).difference({None})     # get rid of None
+    inRight = set(rSet).difference(lSet).difference({None})
+
+    self.addToList(inLeft, changeList, changeHeader, saveFrame1.name)
+    self.addToList(inRight, changeList, changeHeader, saveFrame2.name)
+
+    for compName in dSet:
+      # print('LP:        ', compName, 'in both - do more comparing')
+      changeHeader = changeHeader + compName + ':'
+      self.compareLoop(saveFrame1[compName], saveFrame2[compName], changeList, changeHeader)
+
+  def compareDataBlock(self
+                        , dataBlock1:GenericStarParser.DataBlock
+                        , dataBlock2:GenericStarParser.DataBlock
+                        , changeList=[]
+                        , changeHeader=''):
+    """
+    Compare two dataBlocks, if they have the same name then check their contents
+    """
+    lSet = [dataBlock1[bl].name for bl in dataBlock1]
+    rSet = [dataBlock2[bl].name for bl in dataBlock2]
+    inLeft = set(lSet).difference(rSet)
+    dSet = set(lSet).intersection(rSet)
+    inRight = set(rSet).difference(lSet)
+
+    self.addToList(inLeft, changeList, changeHeader, dataBlock1.name)
+    self.addToList(inRight, changeList, changeHeader, dataBlock2.name)
+
+    for compName in dSet:
+      # print('SF:      ', compName, 'in both - do more comparing')
+      changeHeader = changeHeader + compName + ':'
+      self.compareSaveFrame(dataBlock1[compName], dataBlock2[compName], changeList, changeHeader)
+
+  def compareDataExtent(self
+                        , dataExt1:GenericStarParser.DataExtent
+                        , dataExt2:GenericStarParser.DataExtent
+                        , changeList=[]
+                        , changeHeader=''):
+    """
+    Compare two dataExtents, if they have the same name then check their contents
+    """
+    lSet = [dataExt1[bl].name for bl in dataExt1]
+    rSet = [dataExt2[bl].name for bl in dataExt2]
+    inLeft = set(lSet).difference(rSet)
+    dSet = set(lSet).intersection(rSet)
+    inRight = set(rSet).difference(lSet)
+
+    self.addToList(inLeft, changeList, changeHeader, dataExt1.name)
+    self.addToList(inRight, changeList, changeHeader, dataExt2.name)
+
+    for compName in dSet:
+      changeHeader = changeHeader + compName + ':'
+      # print ('DB:    ', compName, 'in both - do more comparing')
+      self.compareDataBlock(dataExt1[compName], dataExt2[compName], changeList, changeHeader)
+
+  #=========================================================================================
   # test_Compare_Files
   #=========================================================================================
 
@@ -113,45 +219,13 @@ class Test_Compare_Files(unittest.TestCase):
     """
     print ('Loading...')
     print ('  # Commented_Example.nef')
-    file1 = self._loadGeneralFile(path='Commented_Example.nef')
-    print ('  # CCPN_H1GI.nef')
-    file2 = self._loadGeneralFile(path='CCPN_H1GI.nef')
-
-    textFile1 = file1.toString(indent=' ')
-    textFile2 = file2.toString(indent=' ')
+    NefData1 = self._loadGeneralFile(path='Commented_Example.nef')
+    print ('  # Commented_Example_Change.nef')
+    NefData2 = self._loadGeneralFile(path='Commented_Example_Change.nef')
 
     print ('~'*80)
-
-    self.printFile(file1)
-    self.printFile(file2)
-
-    print (file1.toString(indent=' '))
-
-    # compare name of root
-    # compare names of saveframes
-    # compare names of loops within saveframes
-
-    print ('='*80)
-
-    if file1.name == file2.name:
-      print ('DE:  Same DataExtent name')
-    else:
-      print('DE:  Different DataExtent name')
-
-    for i, val in enumerate(file1):
-      left = file1[val]
-      for j, valj in enumerate(file1):
-        right = file1[valj]
-        if left.name == right.name:
-          print ('DB:    ', left.name, 'in both - do more comparing')
-
-          for x, valx in enumerate(left):
-            lleft = left[valx]
-            for y, valy in enumerate(right):
-              rright = right[valy]
-
-              if lleft.name == rright.name:
-                print ('SF:      ', lleft.name, 'in both - do more comparing')
-
-        else:
-          print ('DB:    ', right.name, 'not in file2')
+    compareSet = []
+    self.compareDataExtent(NefData1, NefData2, compareSet)
+    if len(compareSet) > 0:
+      for x in compareSet:
+        print (x)
