@@ -125,6 +125,8 @@ class Test_Compare_Files(unittest.TestCase):
     self.printFile(file1)
     self.printFile(file2)
 
+    print (file1.toString(indent=' '))
+
     # compare name of root
     # compare names of saveframes
     # compare names of loops within saveframes
