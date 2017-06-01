@@ -83,7 +83,6 @@ class Test_Compare_Files(unittest.TestCase):
     """
     super(Test_Compare_Files, self).setUp()
     self.bigList = []
-    # self.bigList.append(compareItem())
 
   #=========================================================================================
   # tearDown     Posttest processing
@@ -116,11 +115,9 @@ class Test_Compare_Files(unittest.TestCase):
 
   def printFile(self, thisFile):
     print ('~'*80)
-
     print(thisFile)
     for i, val in enumerate(thisFile):
       print (i, thisFile[val])
-
       sub = thisFile[val]
       for j, valj in enumerate(sub):
         print ('  ', j, sub[valj])
@@ -142,12 +139,8 @@ class Test_Compare_Files(unittest.TestCase):
   # compare data blocks
   #=========================================================================================
 
-  # def addToList(self, inList, changeList, changeHeader, name, cItem=None):
   def addToList(self, inList, cItem=None):
     if len(inList) > 0:
-      # changeList.append(changeHeader+name+' : contains --> '+','.join(inList))
-
-      # for ll in inList:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append('contains --> '+', '.join(inList))
       self.bigList.append(compareItem(cItem=cItem3))
@@ -155,8 +148,6 @@ class Test_Compare_Files(unittest.TestCase):
   def compareLoop(self
                   , loop1:GenericStarParser.Loop
                   , loop2:GenericStarParser.Loop
-                  # , changeList=[]
-                  # , changeHeader=''
                   , cItem=None):
     """
     Compare two Loops
@@ -171,35 +162,21 @@ class Test_Compare_Files(unittest.TestCase):
     cItem1.list.append('Loop:'+loop1.name)
     cItem1.inWhich = 1
     self.addToList(inLeft, cItem=cItem1)
-    # self.addToList(inLeft, changeList, '---LEFT  '+changeHeader, loop1.name, cItem=cItem1)
 
     cItem2 = copy.deepcopy(cItem)
     cItem2.list.append('Loop:'+loop2.name)
     cItem2.inWhich = 2
     self.addToList(inRight, cItem=cItem2)
-    # self.addToList(inRight, changeList, '---RIGHT '+changeHeader, loop2.name, cItem=cItem2)
 
     if loop1.data and loop2.data:
       for compName in dSet:
         rowRange = min(len(loop1.data), len(loop2.data))
         for rowIndex in range(rowRange):
           if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
-            # changeStr = 'colDiff: '\
-            #             +changeHeader\
-            #             +compName+' : '\
-            #             +str(rowIndex)+' --> '\
-            #             +str(loop1.data[rowIndex][compName])+' != '\
-            #             +str(loop2.data[rowIndex][compName])
-            #
-            # changeList.append(changeStr)
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append('Loop:'+loop1.name)
-            # cItem3.list.append(compName)
-            # cItem3.list.append(str(rowIndex))
-            # cItem3.list.append(str(loop1.data[rowIndex][compName]))
-            # cItem3.list.append(str(loop2.data[rowIndex][compName]))
-            cItem3.list.append('col:'+compName+' : '\
-                        +str(rowIndex)+' --> '\
+            cItem3.list.append('<Column>: '+compName+'  <rowIndex>: '\
+                        +str(rowIndex)+'  -->  '\
                         +str(loop1.data[rowIndex][compName])+' != '\
                         +str(loop2.data[rowIndex][compName]))
             cItem3.inWhich = 3
@@ -208,36 +185,52 @@ class Test_Compare_Files(unittest.TestCase):
   def compareSaveFrame(self
                         , saveFrame1:GenericStarParser.SaveFrame
                         , saveFrame2:GenericStarParser.SaveFrame
-                        # , changeList=[]
-                        # , changeHeader=''
                         , cItem=None):
     """
     Compare two saveFrames, if they have the same name then check their contents
     """
-    lSet = [None if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else saveFrame1[bl].name for bl in saveFrame1]
-    rSet = [None if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else saveFrame2[bl].name for bl in saveFrame2]
-    inLeft = set(lSet).difference(rSet).difference({None})
-    dSet = set(lSet).intersection(rSet).difference({None})
-    inRight = set(rSet).difference(lSet).difference({None})
+    lSet = [' ' if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else saveFrame1[bl].name for bl in saveFrame1]
+    rSet = [' ' if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else saveFrame2[bl].name for bl in saveFrame2]
+    inLeft = set(lSet).difference(rSet).difference({' '})
+    dSet = set(lSet).intersection(rSet).difference({' '})
+    inRight = set(rSet).difference(lSet).difference({' '})
+
+    # lVSet = [str(bl)+':'+str(saveFrame1[bl]) if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame1]
+    # rVSet = [str(bl)+':'+str(saveFrame2[bl]) if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame2]
+
+    lVSet = [str(bl) if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame1]
+    rVSet = [str(bl) if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame2]
+    inVLeft = set(lVSet).difference(rVSet).difference({' '})
+    dVSet = set(lVSet).intersection(rVSet).difference({' '})
+    inVRight = set(rVSet).difference(lVSet).difference({' '})
 
     cItem1 = copy.deepcopy(cItem)
     cItem1.list.append('SaveFrame:'+saveFrame1.name)
     cItem1.inWhich = 1
     self.addToList(inLeft, cItem=cItem1)
-    # self.addToList(inLeft, changeList, '--LEFT  '+changeHeader, saveFrame1.name, cItem=cItem1)
+    self.addToList(inVLeft, cItem=cItem1)
 
     cItem2 = copy.deepcopy(cItem)
     cItem2.list.append('SaveFrame:'+saveFrame2.name)
     cItem2.inWhich = 2
     self.addToList(inRight, cItem=cItem2)
-    # self.addToList(inRight, changeList, '--RIGHT '+changeHeader, saveFrame2.name, cItem=cItem2)
+    self.addToList(inVRight, cItem=cItem2)
 
+    cItem3 = copy.deepcopy(cItem)
+    cItem3.list.append('SaveFrame:'+saveFrame1.name)
+    cItem3.inWhich = 3
     for compName in dSet:
-      cItem3 = copy.deepcopy(cItem)
-      cItem3.list.append('SaveFrame:'+saveFrame1.name)
-      cItem3.inWhich = 3
       self.compareLoop(saveFrame1[compName], saveFrame2[compName], cItem=copy.deepcopy(cItem3))
-      # self.compareLoop(saveFrame1[compName], saveFrame2[compName], changeList, changeHeader+ '\n      ' + compName + ':', cItem=copy.deepcopy(cItem3))
+
+    for compName in dVSet:
+      if saveFrame1[compName] != saveFrame2[compName]:
+        cItem3 = copy.deepcopy(cItem)
+        cItem3.list.append('SaveFrame:' + saveFrame2.name)
+        cItem3.list.append('Value:  '+compName+'  -->  '\
+                    +str(saveFrame1[compName])+' != '\
+                    +str(saveFrame2[compName]))
+        cItem3.inWhich = 3
+        self.bigList.append(compareItem(cItem=cItem3))
 
   def compareDataBlock(self
                         , dataBlock1:GenericStarParser.DataBlock
@@ -256,20 +249,17 @@ class Test_Compare_Files(unittest.TestCase):
     cItem1.list.append('DataBlock:'+dataBlock1.name)
     cItem1.inWhich = 1
     self.addToList(inLeft, cItem=cItem1)
-    # self.addToList(inLeft, changeList, '-LEFT  '+changeHeader, dataBlock1.name, cItem=cItem1)
 
     cItem2 = copy.deepcopy(cItem)
     cItem2.list.append('DataBlock:'+dataBlock2.name)
     cItem2.inWhich = 2
     self.addToList(inRight, cItem=cItem2)
-    # self.addToList(inRight, changeList, '-RIGHT '+changeHeader, dataBlock2.name, cItem=cItem2)
 
+    cItem3 = copy.deepcopy(cItem)
+    cItem3.list.append('DataBlock:' + dataBlock1.name)
+    cItem3.inWhich = 3
     for compName in dSet:
-      cItem3 = copy.deepcopy(cItem)
-      cItem3.list.append('DataBlock:'+dataBlock1.name)
-      cItem3.inWhich = 3
       self.compareSaveFrame(dataBlock1[compName], dataBlock2[compName], cItem=copy.deepcopy(cItem3))
-      # self.compareSaveFrame(dataBlock1[compName], dataBlock2[compName], changeList, changeHeader+ '\n    ' + compName + ':', cItem=copy.deepcopy(cItem3))
 
   def compareDataExtent(self
                         , dataExt1:GenericStarParser.DataExtent
@@ -286,22 +276,19 @@ class Test_Compare_Files(unittest.TestCase):
 
     cItem1 = copy.deepcopy(cItem)
     cItem1.list = ['DataExtent:'+dataExt1.name]
-    cItem1.inWhich = 1                    # left
+    cItem1.inWhich = 1                                # left
     self.addToList(inLeft, cItem=cItem1)
-    # self.addToList(inLeft, changeList, 'LEFT  '+changeHeader, dataExt1.name, cItem=cItem1)
 
     cItem2 = copy.deepcopy(cItem)
     cItem2.list = ['DataExtent:'+dataExt2.name]
-    cItem2.inWhich = 2                    # right
+    cItem2.inWhich = 2                                # right
     self.addToList(inRight, cItem=cItem2)
-    # self.addToList(inRight, changeList, 'RIGHT '+changeHeader, dataExt2.name, cItem=cItem2)
 
+    cItem3 = copy.deepcopy(cItem)
+    cItem3.list = ['DataExtent:' + dataExt1.name]
+    cItem3.inWhich = 3                                # both
     for compName in dSet:
-      cItem3 = copy.deepcopy(cItem)
-      cItem3.list = ['DataExtent:'+dataExt1.name]
-      cItem3.inWhich = 3                  # both
       self.compareDataBlock(dataExt1[compName], dataExt2[compName], cItem=copy.deepcopy(cItem3))
-      # self.compareDataBlock(dataExt1[compName], dataExt2[compName], changeList, changeHeader+ '\n  ' + compName + ':', cItem=copy.deepcopy(cItem3))
 
   #=========================================================================================
   # test_Compare_Files
@@ -320,18 +307,18 @@ class Test_Compare_Files(unittest.TestCase):
     # print ('  # CCPN_2l9r_Paris_155.nef')
     # NefData3 = self._loadGeneralFile(path='CCPN_2l9r_Paris_155.nef')
 
-    print ('~'*80)
     cItem = compareItem()
 
-    # file1='Commented_Example.nef'
+    #                       file1='Commented_Example.nef'
     #                     , file2='Commented_Example_Change.nef'
     #                     , NefData1=NefData1
     #                     , NefData2=NefData2)
 
     self.compareDataExtent(NefData1, NefData2, cItem=cItem)
 
-    for cc in self.bigList:
-      print ('~'*40)
+    for cCount, cc in enumerate(self.bigList):
+      print ('~'*80)
+      print(str(cCount) + ': ' + 'difference')
       if cc.inWhich == 1:
         print ('Present in LEFT')
       elif cc.inWhich == 2:
@@ -340,4 +327,4 @@ class Test_Compare_Files(unittest.TestCase):
         print ('Present in Both')
 
       for ind, ll in enumerate(cc.list):
-        print ('  '*ind, ll)
+        print ('.  '*ind, ll)
