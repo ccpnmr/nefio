@@ -35,6 +35,29 @@ from collections import OrderedDict
 
 TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
+class compareItem():
+  def __init__(self, inDE=None, inDB=None, inSF=None, inLP=None, inCL=None, inStr=None):
+    self.dExtend = inDE
+    self.dBlock = inDB
+    self.sFrame = inSF
+    self.loop = inLP
+    self.column = inCL
+    self.compStr = inStr
+    self.inWhich = 0
+
+class compareFiles():
+  def __init__(self):
+    """
+    Initialise an empty list of comparisons
+    """
+    self.numItems = 0
+    self.compareList = []
+    self.current = compareItem()
+
+  def addItem(self, inCompare:compareItem):
+    self.compareList.append(self.compareItem(inCompare))
+
+
 class Test_Compare_Files(unittest.TestCase):
   """
   Test the comparison of nef files and show a diff of the results
@@ -110,7 +133,6 @@ class Test_Compare_Files(unittest.TestCase):
   def addToList(self, inList, changeList, changeHeader, name):
     if len(inList) > 0:
       changeList.append(changeHeader+name+' : contains --> '+','.join(inList))
-    return changeList
 
   def compareLoop(self
                   , loop1:GenericStarParser.Loop
@@ -126,15 +148,15 @@ class Test_Compare_Files(unittest.TestCase):
     dSet = set(lSet).intersection(rSet)
     inRight = set(rSet).difference(lSet)
 
-    self.addToList(inLeft, changeList, changeHeader, loop1.name)
-    self.addToList(inRight, changeList, changeHeader, loop2.name)
+    self.addToList(inLeft, changeList, '---LEFT  '+changeHeader, loop1.name)
+    self.addToList(inRight, changeList, '---RIGHT '+changeHeader, loop2.name)
 
     if loop1.data and loop2.data:
       for compName in dSet:
         rowRange = min(len(loop1.data), len(loop2.data))
         for rowIndex in range(rowRange):
           if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
-            changeStr = '  COLDIFF: '\
+            changeStr = 'colDiff: '\
                         +changeHeader\
                         +compName+' : '\
                         +str(rowIndex)+' --> '\
@@ -157,13 +179,11 @@ class Test_Compare_Files(unittest.TestCase):
     dSet = set(lSet).intersection(rSet).difference({None})     # get rid of None
     inRight = set(rSet).difference(lSet).difference({None})
 
-    self.addToList(inLeft, changeList, changeHeader, saveFrame1.name)
-    self.addToList(inRight, changeList, changeHeader, saveFrame2.name)
+    self.addToList(inLeft, changeList, '--LEFT  '+changeHeader, saveFrame1.name)
+    self.addToList(inRight, changeList, '--RIGHT '+changeHeader, saveFrame2.name)
 
     for compName in dSet:
-      # print('LP:        ', compName, 'in both - do more comparing')
-      changeHeader = changeHeader + compName + ':'
-      self.compareLoop(saveFrame1[compName], saveFrame2[compName], changeList, changeHeader)
+      self.compareLoop(saveFrame1[compName], saveFrame2[compName], changeList, changeHeader+ '\n      ' + compName + ':')
 
   def compareDataBlock(self
                         , dataBlock1:GenericStarParser.DataBlock
@@ -179,13 +199,11 @@ class Test_Compare_Files(unittest.TestCase):
     dSet = set(lSet).intersection(rSet)
     inRight = set(rSet).difference(lSet)
 
-    self.addToList(inLeft, changeList, changeHeader, dataBlock1.name)
-    self.addToList(inRight, changeList, changeHeader, dataBlock2.name)
+    self.addToList(inLeft, changeList, '-LEFT  '+changeHeader, dataBlock1.name)
+    self.addToList(inRight, changeList, '-RIGHT '+changeHeader, dataBlock2.name)
 
     for compName in dSet:
-      # print('SF:      ', compName, 'in both - do more comparing')
-      changeHeader = changeHeader + compName + ':'
-      self.compareSaveFrame(dataBlock1[compName], dataBlock2[compName], changeList, changeHeader)
+      self.compareSaveFrame(dataBlock1[compName], dataBlock2[compName], changeList, changeHeader+ '\n    ' + compName + ':')
 
   def compareDataExtent(self
                         , dataExt1:GenericStarParser.DataExtent
@@ -201,13 +219,11 @@ class Test_Compare_Files(unittest.TestCase):
     dSet = set(lSet).intersection(rSet)
     inRight = set(rSet).difference(lSet)
 
-    self.addToList(inLeft, changeList, changeHeader, dataExt1.name)
-    self.addToList(inRight, changeList, changeHeader, dataExt2.name)
+    self.addToList(inLeft, changeList, 'LEFT  '+changeHeader, dataExt1.name)
+    self.addToList(inRight, changeList, 'RIGHT '+changeHeader, dataExt2.name)
 
     for compName in dSet:
-      changeHeader = changeHeader + compName + ':'
-      # print ('DB:    ', compName, 'in both - do more comparing')
-      self.compareDataBlock(dataExt1[compName], dataExt2[compName], changeList, changeHeader)
+      self.compareDataBlock(dataExt1[compName], dataExt2[compName], changeList, changeHeader+ '\n  ' + compName + ':')
 
   #=========================================================================================
   # test_Compare_Files
@@ -217,11 +233,16 @@ class Test_Compare_Files(unittest.TestCase):
     """
     Load two files and compare
     """
+    compList = compareFiles()
+
     print ('Loading...')
     print ('  # Commented_Example.nef')
     NefData1 = self._loadGeneralFile(path='Commented_Example.nef')
     print ('  # Commented_Example_Change.nef')
     NefData2 = self._loadGeneralFile(path='Commented_Example_Change.nef')
+
+    # print ('  # CCPN_2l9r_Paris_155.nef')
+    # NefData3 = self._loadGeneralFile(path='CCPN_2l9r_Paris_155.nef')
 
     print ('~'*80)
     compareSet = []
