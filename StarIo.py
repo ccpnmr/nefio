@@ -121,12 +121,16 @@ def parseNefFile(fileName, mode='standard', wrapInDataBlock=False):
   """parse NEF from file
 
   if wrapInDataBlock missing DataBlock start will be provided"""
-  text = open(fileName).read()
-  if wrapInDataBlock and 'save_' in text and not 'data_' in text:
-    text = "data_dummy \n\n" + text
-  dataExtent = GenericStarParser.parse(text, mode)
-  converter = _StarDataConverter(dataExtent, fileType='nef')
-  converter.preValidate()
+  with open(fileName) as inFile:          # ejb - fix not closing file correctly
+    # text = open(fileName).read()
+    text = inFile.read()
+
+    if wrapInDataBlock and 'save_' in text and not 'data_' in text:
+      text = "data_dummy \n\n" + text
+    dataExtent = GenericStarParser.parse(text, mode)
+    converter = _StarDataConverter(dataExtent, fileType='nef')
+    converter.preValidate()
+
   result = converter.convert()
   #
   return result

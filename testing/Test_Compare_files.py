@@ -26,7 +26,8 @@ __date__ = "$Date$"
 import os
 import time
 import copy
-from .. import GenericStarParser, StarIo
+# from .. import GenericStarParser, StarIo
+from ccpn.util.nef import GenericStarParser, StarIo
 from ccpn.util import Path
 import unittest
 import contextlib
@@ -37,36 +38,12 @@ from collections import OrderedDict
 TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
 class compareItem():
-  # def __init__(self, inDE=None, inDB=None, inSF=None, inLP=None, inCL=None, inInd=None, inStr=None, inWhich=None, cItem=None):
-    # self.dExtend = inDE
-    # self.dBlock = inDB
-    # self.sFrame = inSF
-    # self.loop = inLP
-    # self.column = inCL
-    # self.index = inInd
-    # self.compStr = inStr
-
   def __init__(self, cItem=None):
     self.inWhich = None
 
     if cItem is not None:
       self.list = copy.deepcopy(cItem.list)
       self.inWhich = cItem.inWhich
-
-class compareFiles():
-  def __init__(self):
-    """
-    Initialise an empty list of comparisons
-    """
-    self.numItems = 0
-    self.compareList = []
-    self.current = compareItem()
-    self.file1 = None
-    self.file2 = None
-
-  def addItem(self, inCompare:compareItem):
-    self.compareList.append(self.compareItem(inCompare))
-
 
 class Test_Compare_Files(unittest.TestCase):
   """
