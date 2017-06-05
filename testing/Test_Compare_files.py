@@ -297,11 +297,11 @@ class Test_Compare_Files(unittest.TestCase):
       print ('~'*80)
       print(str(cCount) + ': ' + 'difference')
       if cc.inWhich == 1:
-        print ('Present in LEFT')
+        print ('Present in LEFT\n')
       elif cc.inWhich == 2:
-        print ('Present in RIGHT')
+        print ('Present in RIGHT\n')
       elif cc.inWhich == 3:
-        print ('Present in Both')
+        print ('Present in Both\n')
 
       for ind, ll in enumerate(cc.list):
         print ('.  '*ind, ll)
