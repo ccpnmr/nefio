@@ -297,9 +297,9 @@ class Test_Compare_Files(unittest.TestCase):
       print ('~'*80)
       print(str(cCount) + ': ' + 'difference')
       if cc.inWhich == 1:
-        print ('Present in LEFT\n')
+        print ('Present in First file\n')
       elif cc.inWhich == 2:
-        print ('Present in RIGHT\n')
+        print ('Present in Second file\n')
       elif cc.inWhich == 3:
         print ('Present in Both\n')
 
