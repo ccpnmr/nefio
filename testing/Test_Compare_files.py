@@ -327,10 +327,16 @@ class Test_Compare_Files(unittest.TestCase):
     Load two files and compare
     """
     print ('Loading...')
-    print ('  # Commented_Example.nef')
-    NefData1 = self._loadGeneralFile(path='Commented_Example.nef')
-    print ('  # Commented_Example_Change.nef')
-    NefData2 = self._loadGeneralFile(path='Commented_Example_Change.nef')
+
+    # print ('  # Commented_Example.nef')
+    # NefData1 = self._loadGeneralFile(path='Commented_Example.nef')
+    # print ('  # Commented_Example_Change.nef')
+    # NefData2 = self._loadGeneralFile(path='Commented_Example_Change.nef')
+
+
+    NefData1 = self._loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo.nef')
+    NefData2 = self._loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo2.nef')
+
 
     # print ('  # CCPN_2l9r_Paris_155.nef')
     # NefData3 = self._loadGeneralFile(path='CCPN_2l9r_Paris_155.nef')
