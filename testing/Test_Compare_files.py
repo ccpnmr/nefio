@@ -345,14 +345,16 @@ class Test_Compare_Files(unittest.TestCase):
     self.compareDataExtent(NefData1, NefData2, cItem=cItem)
 
     for cCount, cc in enumerate(self.bigList):
-      print ('~'*80)
-      print(str(cCount) + ': ' + 'difference')
-      if cc.inWhich == 1:
-        print ('Present in First file\n')
-      elif cc.inWhich == 2:
-        print ('Present in Second file\n')
-      elif cc.inWhich == 3:
-        print ('Present in Both\n')
+      # print ('~'*80)
+      # print(str(cCount) + ': ' + 'difference')
+      # if cc.inWhich == 1:
+      #   print ('Present in First file\n')
+      # elif cc.inWhich == 2:
+      #   print ('Present in Second file\n')
+      # elif cc.inWhich == 3:
+      #   print ('Present in Both\n')
 
-      for ind, ll in enumerate(cc.list):
-        print ('.  '*ind, ll)
+      # for ind, ll in enumerate(cc.list):
+      #   print ('.  '*ind, ll)
+
+      print (cc.list)
