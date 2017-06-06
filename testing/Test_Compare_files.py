@@ -146,18 +146,46 @@ class Test_Compare_Files(unittest.TestCase):
     self.addToList(inRight, cItem=cItem2)
 
     if loop1.data and loop2.data:
-      for compName in dSet:
-        rowRange = min(len(loop1.data), len(loop2.data))
-        for rowIndex in range(rowRange):
-          if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
-            cItem3 = copy.deepcopy(cItem)
-            cItem3.list.append('Loop:'+loop1.name)
-            cItem3.list.append('<Column>: '+compName+'  <rowIndex>: '\
-                        +str(rowIndex)+'  -->  '\
-                        +str(loop1.data[rowIndex][compName])+' != '\
-                        +str(loop2.data[rowIndex][compName]))
-            cItem3.inWhich = 3
-            self.bigList.append(compareItem(cItem=cItem3))
+      rowRange = min(len(loop1.data), len(loop2.data))
+      if len(loop1.data) == len(loop2.data):        # simple compare, same length tables
+        for compName in dSet:
+          for rowIndex in range(rowRange):
+            if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
+              cItem3 = copy.deepcopy(cItem)
+              cItem3.list.append('Loop:'+loop1.name)
+              cItem3.list.append('<Column>: '+compName+'  <rowIndex>: '\
+                          +str(rowIndex)+'  -->  '\
+                          +str(loop1.data[rowIndex][compName])+' != '\
+                          +str(loop2.data[rowIndex][compName]))
+              cItem3.inWhich = 3
+              self.bigList.append(compareItem(cItem=cItem3))
+      else:
+        cItem3 = copy.deepcopy(cItem)
+        cItem3.list.append('Loop:' + loop1.name)
+        cItem3.list.append('<rowLength>:  '+str(len(loop1.data))+' != '+str(len(loop2.data)))
+        cItem3.inWhich = 3
+        self.bigList.append(compareItem(cItem=cItem3))
+
+        #TODO
+        # need to add a further test here, could do a diff on the tables which would pick up
+        # insertions to the table - this columns would need to be reordered for this to work
+        # what if there are a different number of columns?
+        # also check for Mandatory items
+        #
+    else:
+      # can't compare non-existant loopdata
+      if loop1.data is None:
+        cItem3 = copy.deepcopy(cItem)
+        cItem3.list.append('Loop:' + loop1.name)
+        cItem3.list.append('<Contains no data>')
+        cItem3.inWhich = 1
+        self.bigList.append(compareItem(cItem=cItem3))
+      if loop2.data is None:
+        cItem3 = copy.deepcopy(cItem)
+        cItem3.list.append('Loop:' + loop2.name)
+        cItem3.list.append('<Contains no data>')
+        cItem3.inWhich = 2
+        self.bigList.append(compareItem(cItem=cItem3))
 
   def compareSaveFrame(self
                         , saveFrame1:GenericStarParser.SaveFrame
@@ -181,11 +209,15 @@ class Test_Compare_Files(unittest.TestCase):
     dVSet = set(lVSet).intersection(rVSet).difference({' '})
     inVRight = set(rVSet).difference(lVSet).difference({' '})
 
+    # list everything only present in the first saveFrame
+
     cItem1 = copy.deepcopy(cItem)
     cItem1.list.append('SaveFrame:'+saveFrame1.name)
     cItem1.inWhich = 1
     self.addToList(inLeft, cItem=cItem1)
     self.addToList(inVLeft, cItem=cItem1)
+
+    # list everything only present in the second saveFrame
 
     cItem2 = copy.deepcopy(cItem)
     cItem2.list.append('SaveFrame:'+saveFrame2.name)
@@ -193,13 +225,20 @@ class Test_Compare_Files(unittest.TestCase):
     self.addToList(inRight, cItem=cItem2)
     self.addToList(inVRight, cItem=cItem2)
 
+    # compare the common items
+
     cItem3 = copy.deepcopy(cItem)
     cItem3.list.append('SaveFrame:'+saveFrame1.name)
     cItem3.inWhich = 3
     for compName in dSet:
+      # compare the loop items of the matching saveFrames
+
       self.compareLoop(saveFrame1[compName], saveFrame2[compName], cItem=copy.deepcopy(cItem3))
 
     for compName in dVSet:
+      # compare the other items in the saveFrames
+      #   mandatory/optional parameters
+
       if saveFrame1[compName] != saveFrame2[compName]:
         cItem3 = copy.deepcopy(cItem)
         cItem3.list.append('SaveFrame:' + saveFrame2.name)
@@ -222,15 +261,21 @@ class Test_Compare_Files(unittest.TestCase):
     dSet = set(lSet).intersection(rSet)
     inRight = set(rSet).difference(lSet)
 
+    # list everything only present in the first DataBlock
+
     cItem1 = copy.deepcopy(cItem)
     cItem1.list.append('DataBlock:'+dataBlock1.name)
     cItem1.inWhich = 1
     self.addToList(inLeft, cItem=cItem1)
 
+    # list everything only present in the second DataBlock
+
     cItem2 = copy.deepcopy(cItem)
     cItem2.list.append('DataBlock:'+dataBlock2.name)
     cItem2.inWhich = 2
     self.addToList(inRight, cItem=cItem2)
+
+    # compare the common items - strictly there should only be one DataBlock
 
     cItem3 = copy.deepcopy(cItem)
     cItem3.list.append('DataBlock:' + dataBlock1.name)
@@ -251,15 +296,21 @@ class Test_Compare_Files(unittest.TestCase):
     dSet = set(lSet).intersection(rSet)
     inRight = set(rSet).difference(lSet)
 
+    # list everything only present in the first DataExtent
+
     cItem1 = copy.deepcopy(cItem)
     cItem1.list = ['DataExtent:'+dataExt1.name]
     cItem1.inWhich = 1                                # left
     self.addToList(inLeft, cItem=cItem1)
 
+    # list everything only present in the second DataExtent
+
     cItem2 = copy.deepcopy(cItem)
     cItem2.list = ['DataExtent:'+dataExt2.name]
     cItem2.inWhich = 2                                # right
     self.addToList(inRight, cItem=cItem2)
+
+    # compare the common items - strictly there should only be one DataExtent
 
     cItem3 = copy.deepcopy(cItem)
     cItem3.list = ['DataExtent:' + dataExt1.name]
