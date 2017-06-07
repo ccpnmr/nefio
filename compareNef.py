@@ -315,7 +315,7 @@ if __name__ == '__main__':
   """
   Load two files and compare
   """
-  if sys.argv[1] == '/?':
+  if len(sys.argv) == 2 and sys.argv[1] == '/?':
     print ('Compare contents of Nef files:')
     print ('  usage: compareNef inFile1 inFile2')
     print ('')
@@ -341,8 +341,17 @@ if __name__ == '__main__':
         print ()
         print ('Loading...')
 
-        NefData1 = _loadGeneralFile(path=sys.argv[1])
-        NefData2 = _loadGeneralFile(path=sys.argv[2])
+        try:
+          NefData1 = _loadGeneralFile(path=sys.argv[1])
+        except Exception as e:
+          print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
+          sys.exit()
+
+        try:
+          NefData2 = _loadGeneralFile(path=sys.argv[2])
+        except Exception as e:
+          print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
+          sys.exit()
 
         # NefData1 = _loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo.nef')
         # NefData2 = _loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo2.nef')
