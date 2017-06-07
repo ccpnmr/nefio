@@ -217,7 +217,7 @@ def compareSaveFrame(saveFrame1:GenericStarParser.SaveFrame
   # compare the common items
 
   cItem3 = copy.deepcopy(cItem)
-  cItem3.list.append('SaveFrame:'+saveFrame1.name)
+  cItem3.list.append(SAVEFRAME+saveFrame1.name)
   cItem3.inWhich = 3
   for compName in dSet:
     # compare the loop items of the matching saveFrames
@@ -364,8 +364,8 @@ if __name__ == '__main__':
 
         for cCount, cc in enumerate(bigList):
           if cc.inWhich == 1:
-            print ('inFile1: '+ ':'.join(cc.list))
+            print ('inFile1: '+ ':'.join(cc.list[2:]))
           elif cc.inWhich == 2:
-            print ('inFile2: '+ ':'.join(cc.list))
+            print ('inFile2: '+ ':'.join(cc.list[2:]))
           elif cc.inWhich == 3:
-            print (':'.join(cc.list))
+            print (':'.join(cc.list[2:]))
