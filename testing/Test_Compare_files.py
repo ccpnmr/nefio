@@ -4,21 +4,23 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = ""
-__credits__ = ""
-__licence__ = ("")
-__reference__ = ("")
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2017"
+__credits__ = ("Wayne Boucher, Ed Brooksbank, Rasmus H Fogh, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license"
+               "or ccpnmodel.ccpncore.memops.Credits.CcpnLicense for licence text")
+__reference__ = ("For publications, please use reference from http://www.ccpn.ac.uk/v3-software/downloads/license"
+               "or ccpnmodel.ccpncore.memops.Credits.CcpNmrReference")
 #=========================================================================================
-# Last code modification:
+# Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy$"
-__dateModified__ = "$dateModified$"
-__version__ = "$Revision$"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2017-04-07 11:40:47 +0100 (Fri, April 07, 2017) $"
+__version__ = "$Revision: 3.0.b1 $"
 #=========================================================================================
-# Created:
+# Created
 #=========================================================================================
-__author__ = "$Author$"
-__date__ = "$Date$"
+__author__ = "$Author: CCPN $"
+__date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -26,6 +28,7 @@ __date__ = "$Date$"
 import os
 import time
 import copy
+import sys
 # from .. import GenericStarParser, StarIo
 from ccpn.util.nef import GenericStarParser, StarIo
 from ccpn.util import Path
@@ -328,14 +331,14 @@ class Test_Compare_Files(unittest.TestCase):
     """
     print ('Loading...')
 
-    # print ('  # Commented_Example.nef')
-    # NefData1 = self._loadGeneralFile(path='Commented_Example.nef')
-    # print ('  # Commented_Example_Change.nef')
-    # NefData2 = self._loadGeneralFile(path='Commented_Example_Change.nef')
+    print ('  # Commented_Example.nef')
+    NefData1 = self._loadGeneralFile(path='Commented_Example.nef')
+    print ('  # Commented_Example_Change.nef')
+    NefData2 = self._loadGeneralFile(path='Commented_Example_Change.nef')
 
 
-    NefData1 = self._loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo.nef')
-    NefData2 = self._loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo2.nef')
+    # NefData1 = self._loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo.nef')
+    # NefData2 = self._loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo2.nef')
 
 
     # print ('  # CCPN_2l9r_Paris_155.nef')
