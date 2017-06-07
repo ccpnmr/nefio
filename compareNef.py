@@ -72,7 +72,8 @@ def _loadGeneralFile(path=None):
   usePath = path if path.startswith('/') else os.path.join(TEST_FILE_PATH, path)
   t0 = time.time()
   entry = StarIo.parseNefFile(usePath)  # 'lenient')
-  print("Parsing time %s for %s" % (time.time() - t0, path))
+  # print("Parsing time %s for %s" % (time.time() - t0, path))
+  print (' %s' % path)
   return entry
 
 #=========================================================================================
