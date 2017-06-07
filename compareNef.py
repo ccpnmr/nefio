@@ -365,8 +365,8 @@ if __name__ == '__main__':
 
         for cCount, cc in enumerate(bigList):
           if cc.inWhich == 1:
-            print ('inFile1: '+ ':'.join(cc.list[2:]))
+            print ('inFile1: '+ ':'.join(cc.list[:]))
           elif cc.inWhich == 2:
-            print ('inFile2: '+ ':'.join(cc.list[2:]))
+            print ('inFile2: '+ ':'.join(cc.list[:]))
           elif cc.inWhich == 3:
-            print (':'.join(cc.list[2:]))
+            print (':'.join(cc.list[:]))
