@@ -58,6 +58,9 @@ compareNef contains the following routines:
   compareSaveFrames     compare two SaveFrame objects and return a compare list as above
   compareLoops          compare two Loop objects and return a compare list as above
 
+  printCompareList      print the compare list to the screen
+
+    output is of the form:
 """
 
 #=========================================================================================
@@ -90,7 +93,7 @@ import copy
 import sys
 from ccpn.util.nef import GenericStarParser, StarIo
 from ccpn.util import Path
-# import unittest
+import unittest
 # import contextlib
 # import difflib
 # import json
@@ -175,6 +178,80 @@ def printFile(thisFile):
           break
 
 #=========================================================================================
+# sizeNefList
+#=========================================================================================
+
+def sizeNefList(nefList, whichType=0) -> int:
+  """
+  List only those items that are of type whichType
+  :param nefList: list to print
+  :param whichType: type to print
+  """
+  count=0
+  if nefList is not None:
+    for cCount, cc in enumerate(nefList):
+      if cc.inWhich == whichType:
+        count += 1
+  return count
+
+#=========================================================================================
+# printWhichList
+#=========================================================================================
+
+def printWhichList(nefList, whichType=0):
+  """
+  List only those items that are of type whichType
+  :param nefList: list to print
+  :param whichType: type to print
+  """
+  for cCount, cc in enumerate(nefList):
+    if cc.inWhich == whichType:
+
+      if isinstance(cc.list[-1], str):
+        print('  ' + ':'.join(cc.list[:]))
+      else:
+        outStr = '  '+':'.join(cc.list[:-1])+': contains --> '
+        lineTab = '\n'+' '*len(outStr)
+        print (outStr+lineTab.join(cc.list[-1]))
+
+#=========================================================================================
+# printCompareList
+#=========================================================================================
+
+def printCompareList(nefList, inFile1, inFile2):
+  """
+  Print the contents of the nef compare list to the screen
+
+  Output is in three parts:
+    - items that are present only in the first file
+    - items that are only in the second file
+    - differences between objects that are common in both files
+
+  :param nefList: list to print
+  :param inFile1: name of the first file
+  :param inFile2: name of the second file
+  """
+
+  if not isinstance(inFile1, str):
+    print ('TypeError: inFile1 must be a string.')
+    return
+  if not isinstance(inFile2, str):
+    print ('TypeError: inFile2 must be a string.')
+    return
+
+  if sizeNefList(nefList, whichType=1) > 0:
+    print ('\nItems that are only present in '+inFile1+':')
+    printWhichList(nefList, 1)
+
+  if sizeNefList(nefList, whichType=2) > 0:
+    print ('\nItems that are only present in '+inFile2+':')
+    printWhichList(nefList, 2)
+
+  if sizeNefList(nefList, whichType=3) > 0:
+    print ('\nItems that are present in both files:')
+    printWhichList(nefList, 3)
+
+#=========================================================================================
 # addToList
 #=========================================================================================
 
@@ -186,8 +263,22 @@ def addToList(inList, cItem=nefItem(), nefList=[]) -> list:
   """
   if len(inList) > 0:
     cItem3 = copy.deepcopy(cItem)
-    cItem3.list.append('contains --> '+', '.join(inList))
+    cItem3.list.append(list(inList))              # nest the list within the cItem
     nefList.append(nefItem(cItem=cItem3))
+
+  # if len(inList) > 0:
+  #   cItem3 = copy.deepcopy(cItem)
+  #   lineTab = len('contains --> ')+len(cItem.list)+1
+  #   for cc in cItem.list:
+  #     lineTab += len(cc)
+  #   preStr = '\n'+' '*lineTab
+  #   cItem3.list.append('contains --> '+preStr.join(inList))
+  #   nefList.append(nefItem(cItem=cItem3))
+
+  # for eachItem in inList:
+  #   cItem3 = copy.deepcopy(cItem)
+  #   cItem3.list.append('contains --> '+eachItem)
+  #   nefList.append(nefItem(cItem=cItem3))
 
   return nefList
 
@@ -229,7 +320,7 @@ def compareLoops(loop1:GenericStarParser.Loop
           if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(LOOP+loop1.name)
-            cItem3.list.append('<Column>: '+compName+'  <rowIndex>: '\
+            cItem3.list.append(' <Column>: '+compName+'  <rowIndex>: '\
                         +str(rowIndex)+'  -->  '\
                         +str(loop1.data[rowIndex][compName])+' != '\
                         +str(loop2.data[rowIndex][compName]))
@@ -238,7 +329,7 @@ def compareLoops(loop1:GenericStarParser.Loop
     else:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(LOOP+loop1.name)
-      cItem3.list.append('<rowLength>:  '+str(len(loop1.data))+' != '+str(len(loop2.data)))
+      cItem3.list.append(' <rowLength>:  '+str(len(loop1.data))+' != '+str(len(loop2.data)))
       cItem3.inWhich = 3
       nefList.append(nefItem(cItem=cItem3))
 
@@ -253,13 +344,13 @@ def compareLoops(loop1:GenericStarParser.Loop
     if loop1.data is None:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(LOOP+loop1.name)
-      cItem3.list.append('<Contains no data>')
+      cItem3.list.append(' <Contains no data>')
       cItem3.inWhich = 1
       nefList.append(nefItem(cItem=cItem3))
     if loop2.data is None:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(LOOP+loop2.name)
-      cItem3.list.append('<Contains no data>')
+      cItem3.list.append(' <Contains no data>')
       cItem3.inWhich = 2
       nefList.append(nefItem(cItem=cItem3))
 
@@ -420,6 +511,7 @@ def compareDataExtents(dataExt1:GenericStarParser.DataExtent
   cItem3.inWhich = 3                                # both
   for compName in dSet:
     compareDataBlocks(dataExt1[compName], dataExt2[compName], cItem=copy.deepcopy(cItem3), nefList=nefList)
+    # compareDataBlocks(dataExt1[compName], dataExt2[compName], cItem=cItem3, nefList=nefList)
 
   return nefList
 
@@ -435,18 +527,18 @@ def compareNefFiles(inFile1, inFile2, cItem=nefItem(), nefList=[]):
   :return: list of type nefItem
   """
   if not os.path.isfile(inFile1):
-    print('File Error:', sys.argv[1])
+    print('File Error:', inFile1)
   elif not os.path.isfile(inFile2):
-    print('File Error:', sys.argv[2])
+    print('File Error:', inFile2)
   else:
     try:
-      NefData1 = _loadGeneralFile(path=sys.argv[1])
+      NefData1 = _loadGeneralFile(path=inFile1)
     except Exception as e:
       print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
       return None
 
     try:
-      NefData2 = _loadGeneralFile(path=sys.argv[2])
+      NefData2 = _loadGeneralFile(path=inFile2)
     except Exception as e:
       print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
       return None
@@ -454,6 +546,31 @@ def compareNefFiles(inFile1, inFile2, cItem=nefItem(), nefList=[]):
     nefList = compareDataExtents(NefData1, NefData2)  # , cItem=cItem, nefList=nefList)
 
   return nefList
+
+#=========================================================================================
+# Test_Compare_Files
+#=========================================================================================
+
+class Test_Compare_Files(unittest.TestCase):
+  """
+  Test the comparison of nef files and print the results
+  """
+  def test_Compare_Files(self):
+    """
+    Load two files and compare
+    """
+    # inFile1 = '/Users/ejb66/Desktop/Temporary/sec5part3.nef'
+    # inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/CCPN/Sec5Part3.nef'
+
+    inFile1 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example.nef'
+    inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example_Change.nef'
+
+    print ('TEST COMPARISON')
+    print ('   file1 = '+inFile1)
+    print ('   file2 = '+inFile2)
+    print ('Loading...')
+    nefList = compareNefFiles(inFile1, inFile2)
+    printCompareList(nefList, inFile1, inFile2)
 
 #=========================================================================================
 # __main__
@@ -489,43 +606,4 @@ if __name__ == '__main__':
       print ()
       print ('Loading...')
       nefList = compareNefFiles(inFile1, inFile2)
-
-        # if not os.path.isfile(inFile1):
-        #   print ('File Error:', sys.argv[1])
-        # elif not os.path.isfile(inFile2):
-        #   print('File Error:', sys.argv[2])
-        # else:
-        # should be okay to load the files from here
-
-        # print ()
-        # print ('Loading...')
-        #
-        # try:
-        #   NefData1 = _loadGeneralFile(path=sys.argv[1])
-        # except Exception as e:
-        #   print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
-        #   sys.exit()
-        #
-        # try:
-        #   NefData2 = _loadGeneralFile(path=sys.argv[2])
-        # except Exception as e:
-        #   print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
-        #   sys.exit()
-        #
-        # # NefData1 = _loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo.nef')
-        # # NefData2 = _loadGeneralFile(path='/Users/ejb66/Downloads/cyana-3.98/demo/basic/demo2.nef')
-        # # print ('  # CCPN_2l9r_Paris_155.nef')
-        # # NefData3 = _loadGeneralFile(path='CCPN_2l9r_Paris_155.nef')
-        #
-        # cItem = nefItem()
-        # nefList = []
-        # # compareDataExtents(NefData1, NefData2, cItem=cItem, nefList=nefList)
-        # nefList = compareDataExtents(NefData1, NefData2)    #, cItem=cItem, nefList=nefList)
-
-      for cCount, cc in enumerate(nefList):
-        if cc.inWhich == 1:
-          print ('inFile1: '+ ':'.join(cc.list[:]))
-        elif cc.inWhich == 2:
-          print ('inFile2: '+ ':'.join(cc.list[:]))
-        elif cc.inWhich == 3:
-          print (':'.join(cc.list[:]))
+      printCompareList(nefList, inFile1, inFile2)
