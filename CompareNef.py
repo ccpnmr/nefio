@@ -26,7 +26,7 @@ The general structure of a Nef file is:
         Loop
         SaveFrame
           Item
-          Loop
+          Loop2
 
 DataExtent, DataBlock and SaveFrame are Python OrderedDict with an additional 'name' attribute
 DataBlocks and SaveFrames are entered in their container using their name as the key.
