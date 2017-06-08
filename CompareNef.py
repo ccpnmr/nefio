@@ -43,15 +43,31 @@ Module Contents
 ===============
 
 compareNef contains the following routines:
-  compareNefFiles      compare two Nef files and return a compare object of the form:
+  compareNefFiles      compare two Nef files and return a compare object
+
+    Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
+    Comparisons are made for all data structures that have the same name.
+    Differences for items within a column are listed in the form:
+      dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2
+
+    dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.
+
+  A compare object is a list of nefItems of the form:
 
   ::
 
-      [] list of NefItems of the form:
+      NefItem
+        inWhich         a flag labelling which file the item was found in
+                        1 = found in the first file, 2 = found on the second file, 3 = common to both
+        List
+          Item          multiple strings containing the comparison tree
+          (,List)       the last item of which may be a list of items common to the tree
 
-          inWhich     a flag labelling which file the item was found in
-                      1 = found in the first file, 2 = found on the second file, 3 = common to both
-          []          list of strings containing the comparison information
+  e.g., for parameters present in the first file:
+        [
+          inWhich=1
+          list=[dataExtent1, dataBlock1, saveFrame1, Loop1, [parameter1, parameter2, parameter3]]
+        ]
 
   compareDataExtents    compare two DataExtent objects and return a compare list as above
   compareDataBlocks     compare two DataBlock objects and return a compare list as above
@@ -59,8 +75,6 @@ compareNef contains the following routines:
   compareLoops          compare two Loop objects and return a compare list as above
 
   printCompareList      print the compare list to the screen
-
-    output is of the form:
 """
 
 #=========================================================================================
@@ -409,7 +423,7 @@ def compareSaveFrames(saveFrame1:GenericStarParser.SaveFrame
   for compName in dSet:
     # compare the loop items of the matching saveFrames
 
-    compareLoops(saveFrame1[compName], saveFrame2[compName], cItem=copy.deepcopy(cItem3), nefList=nefList)
+    compareLoops(saveFrame1[compName], saveFrame2[compName], cItem=cItem3, nefList=nefList)
 
   for compName in dVSet:
     # compare the other items in the saveFrames
@@ -418,7 +432,7 @@ def compareSaveFrames(saveFrame1:GenericStarParser.SaveFrame
     if saveFrame1[compName] != saveFrame2[compName]:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(SAVEFRAME+saveFrame2.name)
-      cItem3.list.append('Value:  '+compName+'  -->  '\
+      cItem3.list.append(' <Value>:  '+compName+'  -->  '\
                   +str(saveFrame1[compName])+' != '\
                   +str(saveFrame2[compName]))
       cItem3.inWhich = 3
@@ -466,7 +480,7 @@ def compareDataBlocks(dataBlock1:GenericStarParser.DataBlock
   cItem3.list.append(DATABLOCK+dataBlock1.name)
   cItem3.inWhich = 3
   for compName in dSet:
-    compareSaveFrames(dataBlock1[compName], dataBlock2[compName], cItem=copy.deepcopy(cItem3), nefList=nefList)
+    compareSaveFrames(dataBlock1[compName], dataBlock2[compName], cItem=cItem3, nefList=nefList)
 
   return nefList
 
@@ -510,8 +524,7 @@ def compareDataExtents(dataExt1:GenericStarParser.DataExtent
   cItem3.list = [DATAEXTENT+dataExt1.name]
   cItem3.inWhich = 3                                # both
   for compName in dSet:
-    compareDataBlocks(dataExt1[compName], dataExt2[compName], cItem=copy.deepcopy(cItem3), nefList=nefList)
-    # compareDataBlocks(dataExt1[compName], dataExt2[compName], cItem=cItem3, nefList=nefList)
+    compareDataBlocks(dataExt1[compName], dataExt2[compName], cItem=cItem3, nefList=nefList)
 
   return nefList
 
@@ -578,24 +591,49 @@ class Test_Compare_Files(unittest.TestCase):
 
 if __name__ == '__main__':
   """
-  Load two files and compare
-
-  compareNef for execution from the command line with a suitable script
-  An example can be found in AnalysisV3/bin/compareNef
+  Command Line Usage:
+    compareNef for execution from the command line with a suitable script
+    An example can be found in AnalysisV3/bin/compareNef:
   
-  Usage:  compareNef inFile1, inFile2     compare two Nef files
-          compareNef /?                   simple instructions          
+        #!/usr/bin/env sh
+        export CCPNMR_TOP_DIR="$(dirname $(cd $(dirname "$0"); pwd))"
+        export ANACONDA3=${CCPNMR_TOP_DIR}/miniconda
+        export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c
+        ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*
+  
+    Usage:  compareNef inFile1, inFile2     compare two Nef files
+                                            print results to the screen
+            compareNef /?                   simple instructions
+            
+    Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
+    Comparisons are made for all data structures that have the same name.
+    Differences for items within a column are listed in the form:
+      dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2
+      
+    dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.
   """
 
   if len(sys.argv) == 2 and sys.argv[1] == '/?':
-    print ('Compare contents of Nef files:')
-    print ('  usage: compareNef inFile1 inFile2')
+    print ('Command Line Usage:')
+    print ('  compareNef for execution from the command line with a suitable script')
+    print ('  An example can be found in AnalysisV3/bin/compareNef:')
     print ('')
-    print ('  Searches through all saveFrames and Loops within the files.')
+    print ('      #!/usr/bin/env sh')
+    print ('      export CCPNMR_TOP_DIR="$(dirname $(cd $(dirname "$0"); pwd))"')
+    print ('      export ANACONDA3=${CCPNMR_TOP_DIR}/miniconda')
+    print ('      export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c')
+    print ('      ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*')
+    print ('')
+    print ('  Usage:  compareNef inFile1, inFile2     compare two Nef files')
+    print ('                                          print results to the screen')
+    print ('          compareNef /?                   simple instructions')
+    print ('')
+    print ('  Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.')
     print ('  Comparisons are made for all data structures that have the same name.')
     print ('  Differences for items within a column are listed in the form:')
     print ('    dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2')
-    print ('  saveFrames, Loops, columns present only in one file are listed.')
+    print ('')
+    print ('  dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.')
   else:
     if len(sys.argv) != 3:
       print ('Incorrect number of arguments')
