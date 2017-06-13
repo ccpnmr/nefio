@@ -37,7 +37,7 @@ column name, so that e.g. aSaveFrame['_Loopx.loopcol1'] and aSaveFrame['_Loopx.l
 exist and both correspond to the same loop object.
 
 Items are entered as a string key - string value pair.
-
+                                    the string value can be a dictionary
 
 Module Contents
 ===============
@@ -50,7 +50,11 @@ compareNef contains the following routines:
     Differences for items within a column are listed in the form:
       dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2
 
-    dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.
+    dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed, in the form:
+      dataExtent:dataBlock:saveFrame:Loop: contains --> parameter1
+                                                        parameter2
+                                                        ...
+                                                        parameterN
 
   A compare object is a list of nefItems of the form:
 
@@ -108,10 +112,11 @@ import sys
 from ccpn.util.nef import GenericStarParser, StarIo
 from ccpn.util import Path
 import unittest
+import json
+from collections import OrderedDict
 # import contextlib
 # import difflib
-# import json
-# from collections import OrderedDict
+from ast import literal_eval
 
 TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
@@ -331,15 +336,66 @@ def compareLoops(loop1:GenericStarParser.Loop
     if len(loop1.data) == len(loop2.data):        # simple compare, same length tables
       for compName in dSet:
         for rowIndex in range(rowRange):
-          if loop1.data[rowIndex][compName] != loop2.data[rowIndex][compName]:
-            cItem3 = copy.deepcopy(cItem)
-            cItem3.list.append(LOOP+loop1.name)
-            cItem3.list.append(' <Column>: '+compName+'  <rowIndex>: '\
-                        +str(rowIndex)+'  -->  '\
-                        +str(loop1.data[rowIndex][compName])+' != '\
-                        +str(loop2.data[rowIndex][compName]))
-            cItem3.inWhich = 3
-            nefList.append(nefItem(cItem=cItem3))
+
+          loopValue1 = loop1.data[rowIndex][compName]
+          loopValue2 = loop2.data[rowIndex][compName]
+
+          if loopValue1 != loopValue2:
+
+            # The value_strings are different
+            # Check to see if they are dictionaries
+            # and compare contents
+
+            try:
+              # these 2 lines will crash as a ValueError: malformed string if cannot
+              # be evaluated as:
+              #   - strings, numbers, tuples, lists, dicts, booleans, and None.
+
+              loopValue1 = literal_eval(str(loopValue1))
+              loopValue2 = literal_eval(str(loopValue2))
+
+              if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
+                if loopValue1 != loopValue2:
+
+                  # may need a deeper compare of inserted dictionaries in here
+                  cItem3 = copy.deepcopy(cItem)
+                  cItem3.list.append(LOOP + loop1.name)
+                  cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                                     + str(rowIndex) + '  -->  ' \
+                                     + str(loopValue1) + ' != ' \
+                                     + str(loopValue2))
+                  cItem3.inWhich = 3
+                  nefList.append(nefItem(cItem=cItem3))
+              else:
+                # not both dicts so compare as normal strings
+
+                cItem3 = copy.deepcopy(cItem)
+                cItem3.list.append(LOOP+loop1.name)
+                cItem3.list.append(' <Column>: '+compName+'  <rowIndex>: '\
+                            +str(rowIndex)+'  -->  '\
+                            +str(loopValue1)+' != '\
+                            +str(loopValue2))
+                cItem3.inWhich = 3
+                nefList.append(nefItem(cItem=cItem3))
+            except ValueError:
+              # loopvalues cannot be converted to proper values
+              # print an error
+
+              cItem3 = copy.deepcopy(cItem)
+              cItem3.list.append(LOOP + loop1.name)
+              cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                                 + str(rowIndex) + '  -->  ' \
+                                 + str(loopValue1) + ',  ' \
+                                 + str(loopValue2))
+              cItem3.inWhich = 3
+              nefList.append(nefItem(cItem=cItem3))
+
+              pass
+          else:
+
+            # nothing for the minute as identical already but may want to keep a log
+            pass
+
     else:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(LOOP+loop1.name)
@@ -578,6 +634,9 @@ class Test_Compare_Files(unittest.TestCase):
     inFile1 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example.nef'
     inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example_Change.nef'
 
+    # inFile1 = '/Users/ejb66/Desktop/Temporary/1nk2_docr.nef'
+    # inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/1nk2_docr_extended.ccpn.nef'
+
     print ('TEST COMPARISON')
     print ('   file1 = '+inFile1)
     print ('   file2 = '+inFile2)
@@ -611,6 +670,10 @@ if __name__ == '__main__':
       dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2
       
     dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.
+      dataExtent:dataBlock:saveFrame:Loop: contains --> parameter1
+                                                        parameter2
+                                                        ...
+                                                        parameterN
   """
 
   if len(sys.argv) == 2 and sys.argv[1] == '/?':
@@ -634,6 +697,10 @@ if __name__ == '__main__':
     print ('    dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2')
     print ('')
     print ('  dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.')
+    print ('    dataExtent: dataBlock:saveFrame: Loop: contains --> parameter1')
+    print ('                                                        parameter2')
+    print ('                                                        ...')
+    print ('                                                        parameterN')
   else:
     if len(sys.argv) != 3:
       print ('Incorrect number of arguments')
