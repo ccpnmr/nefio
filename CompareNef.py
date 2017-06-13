@@ -333,75 +333,84 @@ def compareLoops(loop1:GenericStarParser.Loop
 
   if loop1.data and loop2.data:
     rowRange = min(len(loop1.data), len(loop2.data))
-    if len(loop1.data) == len(loop2.data):        # simple compare, same length tables
-      for compName in dSet:
-        for rowIndex in range(rowRange):
 
-          loopValue1 = loop1.data[rowIndex][compName]
-          loopValue2 = loop2.data[rowIndex][compName]
-
-          if loopValue1 != loopValue2:
-
-            # The value_strings are different
-            # Check to see if they are dictionaries
-            # and compare contents
-
-            try:
-              # these 2 lines will crash as a ValueError: malformed string if cannot
-              # be evaluated as:
-              #   - strings, numbers, tuples, lists, dicts, booleans, and None.
-
-              loopValue1 = literal_eval(str(loopValue1))
-              loopValue2 = literal_eval(str(loopValue2))
-
-              if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
-                if loopValue1 != loopValue2:
-
-                  # may need a deeper compare of inserted dictionaries in here
-                  cItem3 = copy.deepcopy(cItem)
-                  cItem3.list.append(LOOP + loop1.name)
-                  cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                     + str(rowIndex) + '  -->  ' \
-                                     + str(loopValue1) + ' != ' \
-                                     + str(loopValue2))
-                  cItem3.inWhich = 3
-                  nefList.append(nefItem(cItem=cItem3))
-              else:
-                # not both dicts so compare as normal strings
-
-                cItem3 = copy.deepcopy(cItem)
-                cItem3.list.append(LOOP+loop1.name)
-                cItem3.list.append(' <Column>: '+compName+'  <rowIndex>: '\
-                            +str(rowIndex)+'  -->  '\
-                            +str(loopValue1)+' != '\
-                            +str(loopValue2))
-                cItem3.inWhich = 3
-                nefList.append(nefItem(cItem=cItem3))
-            except ValueError:
-              # loopvalues cannot be converted to proper values
-              # print an error
-
-              cItem3 = copy.deepcopy(cItem)
-              cItem3.list.append(LOOP + loop1.name)
-              cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                 + str(rowIndex) + '  -->  ' \
-                                 + str(loopValue1) + ',  ' \
-                                 + str(loopValue2))
-              cItem3.inWhich = 3
-              nefList.append(nefItem(cItem=cItem3))
-
-              pass
-          else:
-
-            # nothing for the minute as identical already but may want to keep a log
-            pass
-
-    else:
+    if len(loop1.data) != len(loop2.data):        # simple compare, same length tables
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(LOOP+loop1.name)
       cItem3.list.append(' <rowLength>:  '+str(len(loop1.data))+' != '+str(len(loop2.data)))
       cItem3.inWhich = 3
       nefList.append(nefItem(cItem=cItem3))
+
+    # carry on and compare the common table
+
+    for compName in dSet:
+      for rowIndex in range(rowRange):
+
+        loopValue1 = loop1.data[rowIndex][compName]
+        loopValue2 = loop2.data[rowIndex][compName]
+
+        if loopValue1 != loopValue2:
+
+          # The value_strings are different
+          # Check to see if they are dictionaries
+          # and compare contents
+
+          try:
+            # these 2 lines will crash as a ValueError: malformed string if cannot
+            # be evaluated as:
+            #   - strings, numbers, tuples, lists, dicts, booleans, and None.
+
+            loopValue1 = literal_eval(str(loopValue1))
+            loopValue2 = literal_eval(str(loopValue2))
+
+            if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
+              if loopValue1 != loopValue2:
+
+                # may need a deeper compare of inserted dictionaries in here
+                cItem3 = copy.deepcopy(cItem)
+                cItem3.list.append(LOOP + loop1.name)
+                cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                                   + str(rowIndex) + '  -->  ' \
+                                   + str(loopValue1) + ' != ' \
+                                   + str(loopValue2))
+                cItem3.inWhich = 3
+                nefList.append(nefItem(cItem=cItem3))
+            else:
+              # not both dicts so compare as normal strings
+
+              cItem3 = copy.deepcopy(cItem)
+              cItem3.list.append(LOOP+loop1.name)
+              cItem3.list.append(' <Column>: '+compName+'  <rowIndex>: '\
+                          +str(rowIndex)+'  -->  '\
+                          +str(loopValue1)+' != '\
+                          +str(loopValue2))
+              cItem3.inWhich = 3
+              nefList.append(nefItem(cItem=cItem3))
+          except ValueError:
+            # loopvalues cannot be converted to proper values
+            # print an error
+
+            cItem3 = copy.deepcopy(cItem)
+            cItem3.list.append(LOOP + loop1.name)
+            cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                               + str(rowIndex) + '  -->  ' \
+                               + str(loopValue1) + ' != ' \
+                               + str(loopValue2))
+            cItem3.inWhich = 3
+            nefList.append(nefItem(cItem=cItem3))
+
+            pass
+        else:
+
+          # nothing for the minute as identical already but may want to keep a log
+          pass
+
+    # else:
+    #   cItem3 = copy.deepcopy(cItem)
+    #   cItem3.list.append(LOOP+loop1.name)
+    #   cItem3.list.append(' <rowLength>:  '+str(len(loop1.data))+' != '+str(len(loop2.data)))
+    #   cItem3.inWhich = 3
+    #   nefList.append(nefItem(cItem=cItem3))
 
       #TODO
       # need to add a further test here, could do a diff on the tables which would pick up
@@ -588,13 +597,18 @@ def compareDataExtents(dataExt1:GenericStarParser.DataExtent
 # compareFiles
 #=========================================================================================
 
-def compareNefFiles(inFile1, inFile2, cItem=nefItem(), nefList=[]):
+def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None):
   """
   Compare two Nef files and return comparison as a nefItem list
   :param inFile1: name of the first file
   :param inFile2: name of the second file
   :return: list of type nefItem
   """
+  if not cItem:
+    cItem = nefItem()
+  if not nefList:
+    nefList = []
+
   if not os.path.isfile(inFile1):
     print('File Error:', inFile1)
   elif not os.path.isfile(inFile2):
@@ -612,7 +626,7 @@ def compareNefFiles(inFile1, inFile2, cItem=nefItem(), nefList=[]):
       print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
       return None
 
-    nefList = compareDataExtents(NefData1, NefData2)  # , cItem=cItem, nefList=nefList)
+    compareDataExtents(NefData1, NefData2, cItem=cItem, nefList=nefList)
 
   return nefList
 
@@ -634,13 +648,22 @@ class Test_Compare_Files(unittest.TestCase):
     inFile1 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example.nef'
     inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example_Change.nef'
 
-    # inFile1 = '/Users/ejb66/Desktop/Temporary/1nk2_docr.nef'
-    # inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/1nk2_docr_extended.ccpn.nef'
-
-    print ('TEST COMPARISON')
+    print ('\nTEST COMPARISON')
     print ('   file1 = '+inFile1)
     print ('   file2 = '+inFile2)
     print ('Loading...')
+    nefList = compareNefFiles(inFile1, inFile2)
+    printCompareList(nefList, inFile1, inFile2)
+
+    inFile1 = '/Users/ejb66/Desktop/Temporary/1nk2_docr.nef'
+    inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/1nk2_docr_extended.ccpn.nef'
+
+    print ('~'*80)
+    print ('\nTEST COMPARISON')
+    print ('   file1 = '+inFile1)
+    print ('   file2 = '+inFile2)
+    print ('Loading...')
+    nefList = []
     nefList = compareNefFiles(inFile1, inFile2)
     printCompareList(nefList, inFile1, inFile2)
 
