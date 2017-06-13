@@ -62,7 +62,7 @@ compareNef contains the following routines:
 
       NefItem
         inWhich         a flag labelling which file the item was found in
-                        1 = found in the first file, 2 = found on the second file, 3 = common to both
+                        1 = found in first file, 2 = found in second file, 3 = common to both
         List
           Item          multiple strings containing the comparison tree
           (,List)       the last item of which may be a list of items common to the tree
@@ -112,8 +112,9 @@ import sys
 from ccpn.util.nef import GenericStarParser, StarIo
 from ccpn.util import Path
 import unittest
-import json
-from collections import OrderedDict
+from typing import Optional
+# import json
+# from collections import OrderedDict
 # import contextlib
 # import difflib
 from ast import literal_eval
@@ -274,10 +275,14 @@ def printCompareList(nefList, inFile1, inFile2):
 # addToList
 #=========================================================================================
 
-def addToList(inList, cItem=nefItem(), nefList=[]) -> list:
+def addToList(inList, cItem, nefList) -> list:
   """
   Append cItem to the compare list
-  :param inList: a list of items to add to the compare list
+  Currently adds one cItem with a list as the last element
+
+  :param inList: a list of items to add to the end of cItem
+  :param cItem: object containing the current tree to add to the list
+  :param nefList: current list of comparisons
   :return: list of type nefItem
   """
   if len(inList) > 0:
@@ -307,14 +312,19 @@ def addToList(inList, cItem=nefItem(), nefList=[]) -> list:
 
 def compareLoops(loop1:GenericStarParser.Loop
                 , loop2:GenericStarParser.Loop
-                , cItem=nefItem()
-                , nefList=[]) -> list:
+                , cItem=None
+                , nefList=None) -> list:
   """
   Compare two Loops
   :param loop1: name of the first Loop object
   :param loop2: name of the second Loop object
   :return: list of type nefItem
   """
+  if cItem is None:
+    cItem = nefItem()
+  if nefList is None:
+    nefList = []
+
   lSet = [bl for bl in loop1.columns]
   rSet = [bl for bl in loop2.columns]
   inLeft = set(lSet).difference(rSet)
@@ -419,7 +429,7 @@ def compareLoops(loop1:GenericStarParser.Loop
       # also check for Mandatory items
 
   else:
-    # can't compare non-existant loopdata
+    # can't compare non-existent loopdata
     if loop1.data is None:
       cItem3 = copy.deepcopy(cItem)
       cItem3.list.append(LOOP+loop1.name)
@@ -441,14 +451,19 @@ def compareLoops(loop1:GenericStarParser.Loop
 
 def compareSaveFrames(saveFrame1:GenericStarParser.SaveFrame
                       , saveFrame2:GenericStarParser.SaveFrame
-                      , cItem=nefItem()
-                      , nefList=[]) -> list:
+                      , cItem=None
+                      , nefList=None) -> list:
   """
   Compare two saveFrames, if they have the same name then check their contents
   :param saveFrame1: name of the first SaveFrame object
   :param saveFrame2: name of the second SaveFrame object
   :return: list of type nefItem
   """
+  if cItem is None:
+    cItem = nefItem()
+  if nefList is None:
+    nefList = []
+
   lSet = [' ' if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else saveFrame1[bl].name for bl in saveFrame1]
   rSet = [' ' if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else saveFrame2[bl].name for bl in saveFrame2]
   inLeft = set(lSet).difference(rSet).difference({' '})
@@ -511,14 +526,19 @@ def compareSaveFrames(saveFrame1:GenericStarParser.SaveFrame
 
 def compareDataBlocks(dataBlock1:GenericStarParser.DataBlock
                       , dataBlock2:GenericStarParser.DataBlock
-                      , cItem=nefItem()
-                      , nefList=[]) -> list:
+                      , cItem=None
+                      , nefList=None) -> list:
   """
   Compare two dataBlocks, if they have the same name then check their contents
   :param dataBlock1: name of the first DataBlock object
   :param dataBlock2: name of the second DataBlock object
   :return: list of type nefItem
   """
+  if cItem is None:
+    cItem = nefItem()
+  if nefList is None:
+    nefList = []
+
   lSet = [dataBlock1[bl].name for bl in dataBlock1]
   rSet = [dataBlock2[bl].name for bl in dataBlock2]
   inLeft = set(lSet).difference(rSet)
@@ -555,14 +575,19 @@ def compareDataBlocks(dataBlock1:GenericStarParser.DataBlock
 
 def compareDataExtents(dataExt1:GenericStarParser.DataExtent
                       , dataExt2:GenericStarParser.DataExtent
-                      , cItem=nefItem()
-                      , nefList=[]) -> list:
+                      , cItem=None
+                      , nefList=None) -> list:
   """
   Compare two dataExtents, if they have the same name then check their contents
   :param dataExt1: name of the first DataExtent object
   :param dataExt2: name of the second DataExtent object
   :return: list of type nefItem
   """
+  if cItem is None:
+    cItem = nefItem()
+  if nefList is None:
+    nefList = []
+
   lSet = [dataExt1[bl].name for bl in dataExt1]
   rSet = [dataExt2[bl].name for bl in dataExt2]
   inLeft = set(lSet).difference(rSet)
@@ -597,16 +622,16 @@ def compareDataExtents(dataExt1:GenericStarParser.DataExtent
 # compareFiles
 #=========================================================================================
 
-def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None):
+def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list]:
   """
   Compare two Nef files and return comparison as a nefItem list
   :param inFile1: name of the first file
   :param inFile2: name of the second file
   :return: list of type nefItem
   """
-  if not cItem:
+  if cItem is None:
     cItem = nefItem()
-  if not nefList:
+  if nefList is None:
     nefList = []
 
   if not os.path.isfile(inFile1):
@@ -642,9 +667,8 @@ class Test_Compare_Files(unittest.TestCase):
     """
     Load two files and compare
     """
-    # inFile1 = '/Users/ejb66/Desktop/Temporary/sec5part3.nef'
-    # inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/CCPN/Sec5Part3.nef'
 
+    # test set one
     inFile1 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example.nef'
     inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example_Change.nef'
 
@@ -655,6 +679,7 @@ class Test_Compare_Files(unittest.TestCase):
     nefList = compareNefFiles(inFile1, inFile2)
     printCompareList(nefList, inFile1, inFile2)
 
+    # test set two
     inFile1 = '/Users/ejb66/Desktop/Temporary/1nk2_docr.nef'
     inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/1nk2_docr_extended.ccpn.nef'
 
@@ -663,7 +688,6 @@ class Test_Compare_Files(unittest.TestCase):
     print ('   file1 = '+inFile1)
     print ('   file2 = '+inFile2)
     print ('Loading...')
-    nefList = []
     nefList = compareNefFiles(inFile1, inFile2)
     printCompareList(nefList, inFile1, inFile2)
 
