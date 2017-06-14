@@ -11,9 +11,12 @@ Command Line Usage:
       export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c
       ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*
 
-  Usage:  compareNef inFile1, inFile2     compare two Nef files
-                                          print results to the screen
-          compareNef /?                   simple instructions
+    Usage:  compareNef inFile1 inFile2            compare two Nef files
+                                                  print results to the screen
+            compareNef -b inDir1 inDir2 outDir    compare Nef files common to directories
+                                                  inDir1 and inDir2. Write output *.txt for each
+                                                  file into the outDir directory.
+            compareNef /?                         simple instructions
 
 Details of the contents of Nef files can be found in GenericStarParser
 The general structure of a Nef file is:
@@ -118,6 +121,8 @@ from typing import Optional
 # import contextlib
 # import difflib
 from ast import literal_eval
+from os import listdir
+from os.path import isfile, join
 
 TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
@@ -370,8 +375,10 @@ def compareLoops(loop1:GenericStarParser.Loop
             # be evaluated as:
             #   - strings, numbers, tuples, lists, dicts, booleans, and None.
 
-            loopValue1 = literal_eval(str(loopValue1))
-            loopValue2 = literal_eval(str(loopValue2))
+            loopValue1 = literal_eval(loopValue1)
+            loopValue2 = literal_eval(loopValue2)
+            assert isinstance(loopValue1, dict)
+            assert isinstance(loopValue2, dict)
 
             if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
               if loopValue1 != loopValue2:
@@ -396,9 +403,10 @@ def compareLoops(loop1:GenericStarParser.Loop
                           +str(loopValue2))
               cItem3.inWhich = 3
               nefList.append(nefItem(cItem=cItem3))
-          except ValueError:
+
+          except (SyntaxError, ValueError, AssertionError):
             # loopvalues cannot be converted to proper values
-            # print an error
+            # need to check that comments are being loaded correctly
 
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(LOOP + loop1.name)
@@ -409,7 +417,6 @@ def compareLoops(loop1:GenericStarParser.Loop
             cItem3.inWhich = 3
             nefList.append(nefItem(cItem=cItem3))
 
-            pass
         else:
 
           # nothing for the minute as identical already but may want to keep a log
@@ -659,15 +666,46 @@ def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list
 # Test_Compare_Files
 #=========================================================================================
 
+def batchCompareNefFiles(inDir1, inDir2, outDir):
+  """
+  Batch compare the Nef files common to the two directories
+  For each file found, write the compare log to the corresponding .txt file
+
+  :param inDir1:
+  :param inDir2:
+  :param outDir:
+  """
+  inFileList = [f for f in listdir(inDir1) if isfile(join(inDir1, f)) and f[-4:] == '.nef']
+  outFileList = [f for f in listdir(inDir2) if isfile(join(inDir2, f)) and f[-4:] == '.nef']
+
+  for fl in inFileList:
+    if fl in outFileList:
+
+      outFileName = join(outDir, fl[:-4] + '.txt')
+      print('Batch processing %s > %s' % (fl, outFileName))
+
+      stdOriginal = sys.stdout
+
+      nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl))
+      with open(outFileName, 'w') as outLog:
+        sys.stdout = outLog
+        print (join(inDir1, fl))
+        print (join(inDir2, fl))
+        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+        sys.stdout = stdOriginal
+
+#=========================================================================================
+# Test_Compare_Files
+#=========================================================================================
+
 class Test_Compare_Files(unittest.TestCase):
   """
   Test the comparison of nef files and print the results
   """
-  def test_Compare_Files(self):
+  def _test_Compare_Files(self):
     """
     Load two files and compare
     """
-
     # test set one
     inFile1 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example.nef'
     inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example_Change.nef'
@@ -680,7 +718,7 @@ class Test_Compare_Files(unittest.TestCase):
     printCompareList(nefList, inFile1, inFile2)
 
     # test set two
-    inFile1 = '/Users/ejb66/Desktop/Temporary/1nk2_docr.nef'
+    inFile1 = '/Users/ejb66/Desktop/Temporary/1nk2_docr_extended.ccpn.nef'
     inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/1nk2_docr_extended.ccpn.nef'
 
     print ('~'*80)
@@ -690,6 +728,28 @@ class Test_Compare_Files(unittest.TestCase):
     print ('Loading...')
     nefList = compareNefFiles(inFile1, inFile2)
     printCompareList(nefList, inFile1, inFile2)
+
+    inFile1 = '/Users/ejb66/Desktop/Temporary/2mqq_docr_extended.nef'
+    inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/2mqq_docr_extended.nef'
+
+    print ('~'*80)
+    print ('\nTEST COMPARISON')
+    print ('   file1 = '+inFile1)
+    print ('   file2 = '+inFile2)
+    print ('Loading...')
+    nefList = compareNefFiles(inFile1, inFile2)
+    printCompareList(nefList, inFile1, inFile2)
+
+
+  def test_Compare_BatchFiles(self):
+    """
+    Compare the Nef files in two directories
+    """
+    inDir1 = '/Users/ejb66/Desktop/Temporary'
+    inDir2 = '/Users/ejb66/Dropbox/CCPNdocsShared/NefTestData/v3'
+    outDir = '/Users/ejb66/Desktop/Temporary'
+
+    batchCompareNefFiles(inDir1, inDir2, outDir)
 
 #=========================================================================================
 # __main__
@@ -707,10 +767,13 @@ if __name__ == '__main__':
         export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c
         ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*
   
-    Usage:  compareNef inFile1, inFile2     compare two Nef files
-                                            print results to the screen
-            compareNef /?                   simple instructions
-            
+    Usage:  compareNef inFile1 inFile2            compare two Nef files
+                                                  print results to the screen
+            compareNef -b inDir1 inDir2 outDir    compare Nef files common to directories
+                                                  inDir1 and inDir2. Write output *.txt for each
+                                                  file into the outDir directory.
+            compareNef /?                         simple instructions
+                                                  
     Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
     Comparisons are made for all data structures that have the same name.
     Differences for items within a column are listed in the form:
@@ -734,9 +797,12 @@ if __name__ == '__main__':
     print ('      export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c')
     print ('      ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*')
     print ('')
-    print ('  Usage:  compareNef inFile1, inFile2     compare two Nef files')
-    print ('                                          print results to the screen')
-    print ('          compareNef /?                   simple instructions')
+    print ('  Usage:  compareNef inFile1 inFile2            compare two Nef files')
+    print ('                                                print results to the screen')
+    print ('          compareNef -b inDir1 inDir2 outDir    compare Nef files common to directories')
+    print ('                                                inDir1 and inDir2. Write output *.txt for each')
+    print ('                                                file into the outDir directory.')
+    print ('          compareNef /?                         simple instructions')
     print ('')
     print ('  Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.')
     print ('  Comparisons are made for all data structures that have the same name.')
@@ -749,9 +815,7 @@ if __name__ == '__main__':
     print ('                                                        ...')
     print ('                                                        parameterN')
   else:
-    if len(sys.argv) != 3:
-      print ('Incorrect number of arguments')
-    else:
+    if len(sys.argv) == 3:          # assume compareNef inFile1 inFile2
       inFile1 = sys.argv[1]
       inFile2 = sys.argv[2]
 
@@ -759,3 +823,13 @@ if __name__ == '__main__':
       print ('Loading...')
       nefList = compareNefFiles(inFile1, inFile2)
       printCompareList(nefList, inFile1, inFile2)
+
+    elif len(sys.argv) == 5 and sys.argv[1] == '-b':     # assume compareNef -b inDir1 inDir2 outDir
+      inDir1 = sys.argv[2]
+      inDir2 = sys.argv[3]
+      outDir = sys.argv[4]
+
+      batchCompareNefFiles(inDir1, inDir2, outDir)
+
+    else:
+      print ('Incorrect arguments')
