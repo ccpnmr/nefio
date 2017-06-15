@@ -16,14 +16,18 @@ Command Line Usage:
   optional arguments:
     -h, --help              show this help message
     -H, --Help              Show detailed help
-    -s, --screen            Output batch processing to screen, default is to .txt files
+
     -i, --ignoreblockname   Ignore the blockname when comparing two Nef files
                             May be required when converting Nef files through
                             different applications
+                            May be used with -f and -b
 
     -f inFile1 inFile2, --file inFile1 inFile2
                             Compare two Nef files and print the results to the
                             screen
+
+    -s, --screen            Output batch processing to screen, default is to .txt files
+                            may be used with -b
 
     -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir
                             compare Nef files common to directories
@@ -719,9 +723,13 @@ def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list
       print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
       return None
 
-    if commandLineArguments.IgnoreBlockName is True:
+    if commandLineArguments.IgnoreBlockName is False:
       compareDataExtents(NefData1, NefData2, cItem=cItem, nefList=nefList)
     else:
+
+      # assumes that there is only one block in a file
+      # but this may change
+
       compList1 = [cn for cn in NefData1]
       compList2 = [cn for cn in NefData2]
       compareDataBlocks(NefData1[compList1[0]], NefData2[compList2[0]], cItem=cItem, nefList=nefList)
@@ -841,14 +849,18 @@ if __name__ == '__main__':
     optional arguments:
       -h, --help              show this help message
       -H, --Help              Show detailed help
-      -s, --screen            Output batch processing to screen, default is to .txt files
+
       -i, --ignoreblockname   Ignore the blockname when comparing two Nef files
                               May be required when converting Nef files through
                               different applications
+                              May be used with -f and -b
       
       -f inFile1 inFile2, --file inFile1 inFile2
                               Compare two Nef files and print the results to the
                               screen
+                              
+      -s, --screen            Output batch processing to screen, default is to .txt files
+                              may be used with -b
                               
       -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir
                               compare Nef files common to directories
@@ -888,14 +900,18 @@ if __name__ == '__main__':
     print ('  optional arguments:')
     print ('    -h, --help              show this help message')
     print ('    -H, --Help              Show detailed help')
-    print ('    -s, --screen            Output batch processing to screen, default is to .txt files')
+    print ('')
     print ('    -i, --ignoreblockname   Ignore the blockname when comparing two Nef files')
     print ('                            May be required when converting Nef files through')
     print ('                            different applications')
+    print ('                            May be used with -f and -b')
     print ('')
     print ('    -f inFile1 inFile2, --file inFile1 inFile2')
     print ('                            Compare two Nef files and print the results to the')
     print ('                            screen')
+    print ('')
+    print ('    -s, --screen            Output batch processing to screen, default is to .txt files')
+    print ('                            May be used with -b')
     print ('')
     print ('    -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir')
     print ('                            compare Nef files common to directories')
@@ -924,10 +940,7 @@ if __name__ == '__main__':
       nefList = compareNefFiles(commandLineArguments.inFiles[0], commandLineArguments.inFiles[1])
       printCompareList(nefList, commandLineArguments.inFiles[0], commandLineArguments.inFiles[1])
 
-    # elif len(sys.argv) == 5 and sys.argv[1] == '-b':     # assume compareNef -b inDir1 inDir2 outDir
-
     elif commandLineArguments.blockDirs is not None:
-      # inDir1, inDir2, outDir = commandLineArguments.blockDirs[:]
       batchCompareNefFiles(*commandLineArguments.blockDirs[:])
 
     else:
