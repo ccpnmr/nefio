@@ -16,7 +16,7 @@ Command Line Usage:
             compareNef -b inDir1 inDir2 outDir    compare Nef files common to directories
                                                   inDir1 and inDir2. Write output *.txt for each
                                                   file into the outDir directory.
-            compareNef /?                         simple instructions
+            compareNef -h                         instructions
 
 Details of the contents of Nef files can be found in GenericStarParser
 The general structure of a Nef file is:
@@ -80,6 +80,11 @@ compareNef contains the following routines:
   compareDataBlocks     compare two DataBlock objects and return a compare list as above
   compareSaveFrames     compare two SaveFrame objects and return a compare list as above
   compareLoops          compare two Loop objects and return a compare list as above
+
+  compareNefFiles       compare two Nef files and return a compare list as above
+  batchCompareNefFiles  compare two directories of Nef files.
+                        Nef Files common to specified directories are compared and the compare
+                        lists are written to the third directory as .txt
 
   printCompareList      print the compare list to the screen
 """
@@ -377,8 +382,8 @@ def compareLoops(loop1:GenericStarParser.Loop
 
             loopValue1 = literal_eval(loopValue1)
             loopValue2 = literal_eval(loopValue2)
-            assert isinstance(loopValue1, dict)
-            assert isinstance(loopValue2, dict)
+            # assert isinstance(loopValue1, dict)
+            # assert isinstance(loopValue2, dict)
 
             if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
               if loopValue1 != loopValue2:
@@ -745,9 +750,9 @@ class Test_Compare_Files(unittest.TestCase):
     """
     Compare the Nef files in two directories
     """
-    inDir1 = '/Users/ejb66/Desktop/Temporary'
+    inDir1 = '/Users/ejb66/Desktop/Temporary/v3_exportNef'
     inDir2 = '/Users/ejb66/Dropbox/CCPNdocsShared/NefTestData/v3'
-    outDir = '/Users/ejb66/Desktop/Temporary'
+    outDir = '/Users/ejb66/Desktop/Temporary/v3_exportNef'
 
     batchCompareNefFiles(inDir1, inDir2, outDir)
 
@@ -772,7 +777,7 @@ if __name__ == '__main__':
             compareNef -b inDir1 inDir2 outDir    compare Nef files common to directories
                                                   inDir1 and inDir2. Write output *.txt for each
                                                   file into the outDir directory.
-            compareNef /?                         simple instructions
+            compareNef -h                         instructions
                                                   
     Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
     Comparisons are made for all data structures that have the same name.
@@ -786,7 +791,7 @@ if __name__ == '__main__':
                                                         parameterN
   """
 
-  if len(sys.argv) == 2 and sys.argv[1] == '/?':
+  if len(sys.argv) == 2 and sys.argv[1] == '-h':
     print ('Command Line Usage:')
     print ('  compareNef for execution from the command line with a suitable script')
     print ('  An example can be found in AnalysisV3/bin/compareNef:')
@@ -802,7 +807,7 @@ if __name__ == '__main__':
     print ('          compareNef -b inDir1 inDir2 outDir    compare Nef files common to directories')
     print ('                                                inDir1 and inDir2. Write output *.txt for each')
     print ('                                                file into the outDir directory.')
-    print ('          compareNef /?                         simple instructions')
+    print ('          compareNef -h                         instructions')
     print ('')
     print ('  Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.')
     print ('  Comparisons are made for all data structures that have the same name.')
@@ -832,4 +837,4 @@ if __name__ == '__main__':
       batchCompareNefFiles(inDir1, inDir2, outDir)
 
     else:
-      print ('Incorrect arguments')
+      print ('Incorrect arguments, use compareNef -h')
