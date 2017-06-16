@@ -22,6 +22,9 @@ Command Line Usage:
                             different applications
                             May be used with -f and -b
 
+    -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
+                            the extension, where n is the next available number. 
+      
     -f inFile1 inFile2, --file inFile1 inFile2
                             Compare two Nef files and print the results to the
                             screen
@@ -135,6 +138,7 @@ import copy
 import sys
 from ccpn.util.nef import GenericStarParser, StarIo
 from ccpn.util import Path
+from ccpn.util.SafeFilename import safeOpen
 import unittest
 from typing import Optional
 # import json
@@ -195,7 +199,9 @@ def defineArguments():
   parser = argparse.ArgumentParser(description='Compare the contents of Nef files', prog='compareNef', usage='%(prog)s [options]', formatter_class=argparse.RawDescriptionHelpFormatter)
   parser.add_argument('-H', '--Help', dest='Help', action='store_true', default=False, help='Show detailed help')
   parser.add_argument('-s', '--screen', dest='Screen', action='store_true', default=False, help='Output batch processing to screen')
-  parser.add_argument('-i', '--ignoreblockname', dest='IgnoreBlockName', action='store_true', default=False
+  parser.add_argument('-i', '--ignoreblockname', dest='ignoreBlockName', action='store_true', default=False
+                      , help='Ignore the blockname when comparing two Nef files')
+  parser.add_argument('-k', '--keep', dest='keepExisting', action='store_true', default=False
                       , help='Ignore the blockname when comparing two Nef files')
   parser.add_argument('-f', '--file', dest='inFiles', nargs=2, metavar=('inFile1', 'inFile2'), default=None
                       , help='Compare two Nef files and print the results to the screen')
@@ -723,7 +729,7 @@ def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list
       print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
       return None
 
-    if commandLineArguments.IgnoreBlockName is False:
+    if commandLineArguments.ignoreBlockName is False:
       compareDataExtents(NefData1, NefData2, cItem=cItem, nefList=nefList)
     else:
 
@@ -762,15 +768,21 @@ def batchCompareNefFiles(inDir1, inDir2, outDir):
 
       nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl))
 
-      if commandLineArguments.Screen is False:
-        with open(outFileName, 'w') as outLog:
+      if commandLineArguments.Screen is True:
+        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+
+      else:
+        if commandLineArguments.keepExisting is True:
+          openType = safeOpen
+        else:
+          openType = open
+
+        with openType(outFileName, 'w') as outLog:
           sys.stdout = outLog
           print (join(inDir1, fl))
           print (join(inDir2, fl))
           printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
           sys.stdout = stdOriginal
-      else:
-        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
 
 #=========================================================================================
 # Test_Compare_Files
@@ -833,7 +845,7 @@ class Test_Compare_Files(unittest.TestCase):
 #=========================================================================================
 
 if __name__ == '__main__':
-  """
+  helpText = """
   Command Line Usage:
     compareNef for execution from the command line with a suitable script
     An example can be found in AnalysisV3/bin/compareNef:
@@ -854,6 +866,9 @@ if __name__ == '__main__':
                               May be required when converting Nef files through
                               different applications
                               May be used with -f and -b
+                              
+      -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
+                              the extension, where n is the next available number. 
       
       -f inFile1 inFile2, --file inFile1 inFile2
                               Compare two Nef files and print the results to the
@@ -885,51 +900,7 @@ if __name__ == '__main__':
   commandLineArguments = parser.parse_args()
 
   if commandLineArguments.Help:
-    print ('Command Line Usage:')
-    print ('  compareNef for execution from the command line with a suitable script')
-    print ('  An example can be found in AnalysisV3/bin/compareNef:')
-    print ('')
-    print ('      #!/usr/bin/env sh')
-    print ('      export CCPNMR_TOP_DIR="$(dirname $(cd $(dirname "$0"); pwd))"')
-    print ('      export ANACONDA3=${CCPNMR_TOP_DIR}/miniconda')
-    print ('      export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c')
-    print ('      ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*')
-    print ('')
-    print ('  Usage:  compareNef [options]')
-    print ('')
-    print ('  optional arguments:')
-    print ('    -h, --help              show this help message')
-    print ('    -H, --Help              Show detailed help')
-    print ('')
-    print ('    -i, --ignoreblockname   Ignore the blockname when comparing two Nef files')
-    print ('                            May be required when converting Nef files through')
-    print ('                            different applications')
-    print ('                            May be used with -f and -b')
-    print ('')
-    print ('    -f inFile1 inFile2, --file inFile1 inFile2')
-    print ('                            Compare two Nef files and print the results to the')
-    print ('                            screen')
-    print ('')
-    print ('    -s, --screen            Output batch processing to screen, default is to .txt files')
-    print ('                            May be used with -b')
-    print ('')
-    print ('    -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir')
-    print ('                            compare Nef files common to directories')
-    print ('                            inDir1 and inDir2. Write output *.txt for each')
-    print ('                            file into the outDir directory.')
-    print ('')
-    print ('  Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.')
-    print ('  Comparisons are made for all data structures that have the same name.')
-    print ('  Differences for items within a column are listed in the form:')
-    print ('    dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2')
-    print ('')
-    print ('  dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.')
-    print ('    dataExtent: dataBlock:saveFrame: Loop: contains --> parameter1')
-    print ('                                                        parameter2')
-    print ('                                                        ...')
-    print ('                                                        parameterN')
-    print ('')
-    print ('  Please see the contents of CompareNef.py for functions available to python.')
+    print (helpText)
   else:
     if commandLineArguments.inFiles is not None:          # assume compareNef inFile1 inFile2
       # inFile1 = sys.argv[1]
