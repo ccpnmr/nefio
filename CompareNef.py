@@ -149,6 +149,7 @@ from ast import literal_eval
 from os import listdir
 from os.path import isfile, join
 import textwrap
+import re
 
 TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
@@ -346,6 +347,23 @@ def printCompareList(nefList, inFile1, inFile2):
   if sizeNefList(nefList, whichType=3) > 0:
     print ('\nItems that are present in both files:')
     printWhichList(nefList, 3)
+
+#=========================================================================================
+# _filterName
+#=========================================================================================
+
+def _filterName(inName) ->str:
+  """
+  Remove rogue `n` quotes from the names.
+  This is currently only a test
+  :param inName:
+  :return:
+  """
+  # ejb - need to remove the rogue `n` at the beginning of the name if it exists
+  #       as it is passed into the namespace and gets added iteratively every save
+  #       next three lines remove all occurrences of `n` from name
+  regex = u'\`\d*`+?'
+  return re.sub(regex, '', inName)  # substitute with ''
 
 #=========================================================================================
 # addToList
