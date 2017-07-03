@@ -810,7 +810,7 @@ class Test_Compare_Files(unittest.TestCase):
   """
   Test the comparison of nef files and print the results
   """
-  def test_Compare_Files(self):
+  def _test_Compare_Files(self):
     """
     Load two files and compare
     """
