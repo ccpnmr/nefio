@@ -67,18 +67,19 @@ class NefDict(GenericStarParser.DataBlock):
   # superclassed from DataBlock which is of type StarContainer
 
   def __init__(self, inDict):
+
+    import inspect
+
     # keep a copy of the original dataExtent
     super(NefDict, self).__init__(name=inDict.name)
     self._nefDict = inDict
 
     property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
+    method_names = inspect.getmembers(inDict, predicate=inspect.ismethod)
 
-    from optparse import OptionParser
-    import inspect
-
-    # parser = OptionParser()
-    method_names = inspect.getmembers(GenericStarParser.DataBlock(), predicate=inspect.ismethod)
-    pass
+    # add the method to point to our loaded dataExtent
+    for met in method_names:
+      setattr(self.__class__, met[0], met[1])
 
 def importFile(fileName, mode='standard'):
   nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
