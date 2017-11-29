@@ -8,3 +8,4 @@ The directory contains a series of modules for the processing of Nef files.
            For more details see ./StarIo.py
   StarTokeniser - STAR file tokenizer
 
+  NefImporter - a series of routines for reading a Nef file and examining the contents.
