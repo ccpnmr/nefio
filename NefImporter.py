@@ -74,19 +74,19 @@ class NefDict(GenericStarParser.DataBlock):
     super(NefDict, self).__init__(name=inDict.name)
     self._nefDict = inDict
 
-    property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
-    method_names = inspect.getmembers(inDict, predicate=inspect.ismethod)
+    # property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
+    methodNames = inspect.getmembers(inDict, predicate=inspect.ismethod)
 
     # add the method to point to our loaded dataExtent
-    for met in method_names:
+    for met in methodNames:
       setattr(self.__class__, met[0], met[1])
 
-def importFile(fileName, mode='standard'):
-  nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
-  outDict = list(nefDataExtent.values())
-  if len(outDict) > 1:
-    print(
-      'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
-  outDict = outDict[0]
+  def importFile(fileName, mode='standard'):
+    nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
+    outDict = list(nefDataExtent.values())
+    if len(outDict) > 1:
+      print(
+        'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+    outDict = outDict[0]
 
-  return NefDict(outDict)
+    return NefDict(outDict)
