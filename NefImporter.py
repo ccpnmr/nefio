@@ -61,7 +61,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 from . import GenericStarParser
 from . import StarIo
 
-class NefDict(GenericStarParser.DataBlock):
+class NefImporter(GenericStarParser.DataBlock):
   """Top level data block for accessing object tree"""
   # put functions in here to read the contents of the dict.
   # superclassed from DataBlock which is of type StarContainer
@@ -71,15 +71,16 @@ class NefDict(GenericStarParser.DataBlock):
     import inspect
 
     # keep a copy of the original dataExtent
-    super(NefDict, self).__init__(name=inDict.name)
+    super(NefImporter, self).__init__(name=inDict.name)
     self._nefDict = inDict
 
-    # property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
-    methodNames = inspect.getmembers(inDict, predicate=inspect.ismethod)
-
-    # add the method to point to our loaded dataExtent
-    for met in methodNames:
-      setattr(self.__class__, met[0], met[1])
+    # these should all be wrapped
+    # # property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
+    # methodNames = inspect.getmembers(inDict, predicate=inspect.ismethod)
+    #
+    # # add the method to point to our loaded dataExtent
+    # for met in methodNames:
+    #   setattr(self.__class__, met[0], met[1])
 
   def importFile(fileName, mode='standard'):
     nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
