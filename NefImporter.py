@@ -111,14 +111,14 @@ __nef_version__ = '.'.join( (MAJOR_VERSION, MINOR_VERSION) )
 # __version__ = '.'.join( (__nef_version__, PATCH_LEVEL) )
 
 
-NEF_CATEGORIES = ['nef_nmr_meta_data',
-                  'nef_molecular_system',
-                  'nef_chemical_shift_list',
-                  'nef_distance_restraint_list',
-                  'nef_dihedral_restraint_list',
-                  'nef_rdc_restraint_list',
-                  'nef_nmr_spectrum',
-                  'nef_peak_restraint_links']
+NEF_CATEGORIES = [('nef_nmr_meta_data', 'get_nmr_meta_data'),
+                  ('nef_molecular_system', 'get_molecular_systems'),
+                  ('nef_chemical_shift_list', 'get_chemical_shift_lists'),
+                  ('nef_distance_restraint_list', 'get_distance_restraint_lists'),
+                  ('nef_dihedral_restraint_list', 'get_dihedral_restraint_lists'),
+                  ('nef_rdc_restraint_list', 'get_rdc_restraint_lists'),
+                  ('nef_nmr_spectrum', 'get_nmr_spectra'),
+                  ('nef_peak_restraint_links', 'get_peak_restraint_links')]
 
 NEF_REQUIRED_SAVEFRAME_BY_FRAMECODE = ['nef_nmr_meta_data',
                                        'nef_molecular_system']
@@ -331,6 +331,13 @@ class NefDict(StarIo.NmrSaveFrame):
     self._nefFrame = inFrame
     self._lastError = NEFVALID
 
+  def _namedToOrderedDict(self, frame):
+    # change a saveFrame into a normal OrderedDict
+    newItem = OrderedDict()
+    for ky in frame.keys():
+      newItem[ky] = frame[ky]
+    return newItem
+
   def getTableNames(self):
     # return table 'name' if exists else None
     self._lastError = NEFVALID
@@ -359,14 +366,7 @@ class NefDict(StarIo.NmrSaveFrame):
       if asPandas:
         return self._convertToPandas(thisFrame)
       else:
-        table = []
-        for row in thisFrame.data:
-          newItem = OrderedDict()
-          for ky in row.keys():
-            newItem[ky] = row[ky]
-          table.append(newItem)
-
-        return table
+        return [self._namedToOrderedDict(sf) for sf in thisFrame.data]
 
     except:
       self._lastError = NEFERROR_GENERICGETTABLEERROR
@@ -394,7 +394,6 @@ class NefDict(StarIo.NmrSaveFrame):
       df.replace({'.': np.NAN, 'true': True, 'false': False}, inplace=True)
       return df
     except Exception as es:
-      print ('Pandas error: %s' % str(es))
       return None
 
 
@@ -405,6 +404,8 @@ class NefImporter():
   def __init__(self, name=None, programName='Unknown', programVersion='Unknown', project=None, initialise=True):
     self.name = name
     self._nefDict = StarIo.NmrDataBlock()     # empty block
+    self.programName = programName
+    self.programVersion = programVersion
 
     if project:
       # new project here - program and version name from project
@@ -418,60 +419,69 @@ class NefImporter():
       # initialise a basic object
       self.initialise()
 
-    # import inspect
-    # from functools import partial
-    # methodNames = [mt for mt in inspect.getmembers(self, predicate=inspect.ismethod) if 'ListType' in mt[0]]
-    # #
-    # # # add the method to point to our loaded dataExtent
-    # # for met in methodNames:
-    # #   setattr(self.__class__, met[0], met[1])
-    #
-    # typeName = 'get_' + NEF_CATEGORIES[0] + 's'
-    # setattr(self.__class__, typeName, partial(methodNames[0][1], NEF_CATEGORIES[0]))
+    from functools import partial
+    for nefCategory in NEF_CATEGORIES:
+      setattr(self.__class__, nefCategory[1], partial(self._getListType, nefCategory[0]))
 
-  # def _getListType(self, _listType):
-  #     return [self._nefDict[db] for db in self._nefDict.keys() if _listType in db]
+  def _namedToNefDict(self, frame):
+    # change a saveFrame into a normal OrderedDict
+    newItem = NefDict(inFrame=frame)
+    for ky in frame.keys():
+      newItem[ky] = frame[ky]
+    return newItem
 
-  NEF_CATEGORIES = ['nef_nmr_meta_data',
-                    'nef_molecular_system',
-                    'nef_chemical_shift_list',
-                    'nef_distance_restraint_list',
-                    'nef_dihedral_restraint_list',
-                    'nef_rdc_restraint_list',
-                    'nef_nmr_spectrum',
-                    'nef_peak_restraint_links']
-
-  def get_nmr_meta_data(self):
+  def _getListType(self, _listType):
+    # return a list of '_listType' from the saveFrame, used with nefCategory above
     self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_nmr_meta_data' in db]
 
-  def get_molecular_systems(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_molecular_system' in db]
+    if self._nefDict and isinstance(self._nefDict, OrderedDict):
+      sfList = [self._nefDict[db] for db in self._nefDict.keys() if _listType in db]
+      sfList = [self._namedToNefDict(sf) for sf in sfList]
 
-  def get_chemical_shift_lists(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_chemical_shift_list' in db]
+      if len(sfList) > 1:
+        return sfList
+      elif sfList:
+        return sfList[0]
 
-  def get_distance_restraint_lists(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_distance_restraint_list' in db]
+    return None
 
-  def get_dihedral_restraint_lists(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_dihedral_restraint_list' in db]
-
-  def get_rdc_restraint_lists(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_rdc_restraint_list' in db]
-
-  def get_nmr_spectra(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_nmr_spectrum' in db]
-
-  def get_peak_restraint_links(self):
-    self._lastError = NEFVALID
-    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_peak_restraint_links' in db]
+  # def get_nmr_meta_data(self):
+  #   self._lastError = NEFVALID
+  #   sf = [self._nefDict[db] for db in self._nefDict.keys() if 'nef_nmr_meta_data' in db]
+  #   if len(sf > 1):
+  #     return sf
+  #   elif sf:
+  #     return sf[0]
+  #
+  #   return None
+  #
+  # def get_molecular_systems(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_molecular_system' in db]
+  #
+  # def get_chemical_shift_lists(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_chemical_shift_list' in db]
+  #
+  # def get_distance_restraint_lists(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_distance_restraint_list' in db]
+  #
+  # def get_dihedral_restraint_lists(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_dihedral_restraint_list' in db]
+  #
+  # def get_rdc_restraint_lists(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_rdc_restraint_list' in db]
+  #
+  # def get_nmr_spectra(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_nmr_spectrum' in db]
+  #
+  # def get_peak_restraint_links(self):
+  #   self._lastError = NEFVALID
+  #   return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_peak_restraint_links' in db]
 
 
   def initialise(self):
@@ -481,6 +491,8 @@ class NefImporter():
     self._nefDict['nef_nmr_meta_data']['sf_framecode'] = 'nef_nmr_meta_data'
     self._nefDict['nef_nmr_meta_data']['format_name'] = 'Nmr_Exchange_Format'
     self._nefDict['nef_nmr_meta_data']['format_version'] = __nef_version__
+    self._nefDict['nef_nmr_meta_data']['program_name'] = self.programName
+    self._nefDict['nef_nmr_meta_data']['program_version'] = self.programVersion
     # for l in Nef.MD_REQUIRED_LOOPS:
     #     self['nef_nmr_meta_data'][l] = []
 
@@ -600,12 +612,16 @@ class NefImporter():
     # set the Nef from the contents of the string, opposite of toString
     self._lastError = NEFVALID
 
-    dataExtent = StarIo.parseNef(text=text)
-    if dataExtent:
-      dbs = [dataExtent[db] for db in dataExtent.keys()]
-      if dbs:
-        self._nefDict = dbs[0]
-    else:
+    try:
+      dataExtent = StarIo.parseNef(text=text)
+      if dataExtent:
+        dbs = [dataExtent[db] for db in dataExtent.keys()]
+        if dbs:
+          self._nefDict = dbs[0]
+      else:
+        self._lastError = NEFERROR_BADFROMSTRING
+        self._nefDict = None
+    except Exception as es:
       self._lastError = NEFERROR_BADFROMSTRING
       self._nefDict = None
 
@@ -641,37 +657,48 @@ class NefImporter():
     # return a list of the categories available in a Nef file
     self._lastError = NEFVALID
 
-    return tuple(NEF_CATEGORIES)
+    return tuple([nm[0] for nm in NEF_CATEGORIES])
 
   def getSaveFrameNames(self, filter=NEF_RETURNALL):
     # return a list of the saveFrames in the file
     self._lastError = NEFVALID
 
-    names = [self._nefDict[db].name for db in self._nefDict.keys()
-             if isinstance(self._nefDict[db], StarIo.NmrSaveFrame)]
+    try:
+      names = [self._nefDict[db].name for db in self._nefDict.keys()
+               if isinstance(self._nefDict[db], StarIo.NmrSaveFrame)]
 
-    if filter == NEF_RETURNNEF:
-      names = [nm for nm in names if nm.startswith(NEF_PREFIX)]
-    elif filter == NEF_RETURNOTHER:
-      names = [nm for nm in names if not nm.startswith(NEF_PREFIX)]
+      if filter == NEF_RETURNNEF:
+        names = [nm for nm in names if nm and nm.startswith(NEF_PREFIX)]
+      elif filter == NEF_RETURNOTHER:
+        names = [nm for nm in names if nm and not nm.startswith(NEF_PREFIX)]
 
-    return tuple(names)
+      return tuple(names)
+    except Exception as es:
+      return None
 
   def hasSaveFrame(self, name):
     # return True if the saveFrame exists, else False
     self._lastError = NEFVALID
 
-    return name in self._nefDict
+    try:
+      return name in self._nefDict
+    except:
+      return None
 
   def getSaveFrame(self, sfName):
     # return the saveFrame 'name'
     self._lastError = NEFVALID
 
-    if sfName in self._nefDict:
+    # if self._nefDict and isinstance(self._nefDict, OrderedDict) and sfName in self._nefDict:
+    #   return NefDict(self._nefDict[sfName])
+    #
+    # self._lastError = NEFERROR_SAVEFRAMEDOESNOTEXIST
+    # return None
+    try:
       return NefDict(self._nefDict[sfName])
-
-    self._lastError = NEFERROR_SAVEFRAMEDOESNOTEXIST
-    return None
+    except Exception as es:
+      self._lastError = NEFERROR_SAVEFRAMEDOESNOTEXIST
+      return None
 
   def getLastError(self):
     # return the error code of the last action
@@ -683,6 +710,7 @@ if __name__ == '__main__':
 
   app = TestApplication()
 
+  # TODO:ED write a test suite for this
   test = NefImporter()
   test.loadFile('/Users/ejb66/PycharmProjects/Sec5Part3.nef')
 
@@ -696,39 +724,66 @@ if __name__ == '__main__':
   names = test.getSaveFrameNames(filter=NEF_RETURNOTHER)
   print (names)
 
-  sf1 = test.getSaveFrame(names[0])
+  sf1 = None
+  if names:
+    sf1 = test.getSaveFrame(names[0])
   sf2 = test.getSaveFrame('notFound')
 
   print (test.hasSaveFrame('notFound'))
-  print (test.hasSaveFrame(names[0]))
+  if names:
+    print (test.hasSaveFrame(names[0]))
 
   ts = test.toString()
   test.fromString(ts)
 
-  print (sf1.name)
-  print (sf1.getTableNames())
+  if sf1:
+    print (sf1.name)
+    print (sf1.getTableNames())
 
-  table = sf1.getTable()
-  sf1.getTable('nmr_atom', asPandas=True)
-  table = sf1.getTable('nmr_atom', asPandas=True)
+    table = sf1.getTable()
+    sf1.getTable('nmr_atom', asPandas=True)
+    table = sf1.getTable('nmr_atom', asPandas=True)
 
-  print (table)
+    print (table)
 
-  print (sf1.hasTable('notFound'))
-  print (sf1.hasTable('nmr_residue'))
+    print (sf1.hasTable('notFound'))
+    print (sf1.hasTable('nmr_residue'))
 
-  print (test.getSaveFrame(sfName='ccpn_assignment').getTable())
-  print (test.getSaveFrame(sfName='ccpn_assignment').getTable(name='nmr_residue', asPandas=True))
-  print (test.getSaveFrame(sfName='ccpn_assignment').getTable(name='notFound', asPandas=True))
+  print ('Testing getTable')
+  try:
+    print (test.getSaveFrame(sfName='ccpn_assignment').getTable())
+  except Exception as es:
+    print ('Error: %s' % str(es))
 
+  try:
+    print (test.getSaveFrame(sfName='ccpn_assignment').getTable(name='nmr_residue', asPandas=True))
+  except Exception as es:
+    print ('Error: %s' % str(es))
+
+  try:
+    print (test.getSaveFrame(sfName='ccpn_assignment').getTable(name='notFound', asPandas=True))
+  except Exception as es:
+    print ('Error: %s' % str(es))
+
+  print ('Testing saveFile')
   test.saveFile('/Users/ejb66/PycharmProjects/Sec5Part3testing.nef')
   print (test.getLastError())
 
-  import inspect
-  methodNames = inspect.getmembers(test, predicate=inspect.ismethod)
+  # test meta creation of category names
+  print (test.get_nmr_meta_data())
+  print (test.get_molecular_systems())
+  print (test.get_dihedral_restraint_lists())
+  print (test.get_distance_restraint_lists())
+  print (test.get_chemical_shift_lists())
+  print (test.get_nmr_spectra())
+  print (test.get_peak_restraint_links())
+  print (test.get_rdc_restraint_lists())
 
-  for met in methodNames:
-    print (met)
-
-  print (test._getListType('nef_nmr_meta_data'))
-  print(test.get_nef_nmr_meta_datas())
+  # sp = test.get_nmr_spectra()
+  # if sp:
+  #   for spp in sp:
+  #     print (spp.getTableNames())
+  #     print (spp.getTable('nef_spectrum_dimension', asPandas=True))
+  #
+  # print (test.get_molecular_systems().getTable('nef_sequence'))
+  # print (test.get_chemical_shift_lists().getTable(asPandas=True))
