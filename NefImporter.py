@@ -76,6 +76,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import sys, importlib
 from pathlib import Path
 
+
 def import_parents(level=1):
   global __package__
   file = Path(__file__).resolve()
@@ -94,6 +95,13 @@ if __name__ == '__main__' and __package__ is None:
   import_parents()
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+
+import numpy as np
+import pandas as pd
+from . import GenericStarParser
+from . import StarIo
+from collections import OrderedDict
 
 
 MAJOR_VERSION = '0'
@@ -306,52 +314,97 @@ NEF_RETURNNEF = 'nef_'
 NEF_RETURNOTHER = 'other'
 NEF_PREFIX = 'nef_'
 
-
-from . import GenericStarParser
-from . import StarIo
+NEFVALID = 0
+NEFERROR_GENERICGETTABLEERROR = -1
+NEFERROR_TABLEDOESNOTEXISTS = -2
+NEFERROR_SAVEFRAMEDOESNOTEXIST = -3
+NEFERROR_ERRORLOADINGFILE = -4
+NEFERROR_ERRORSAVINGFILE = -5
+NEFERROR_BADTOSTRING = -6
+NEFERROR_BADFROMSTRING = -7
 
 
 class NefDict(StarIo.NmrSaveFrame):
   # class to add functions to a saveFrame
-  def __init__(self, inDict):
-    super(NefDict, self).__init__(name=inDict.name)
-    self._nefDict = inDict
+  def __init__(self, inFrame):
+    super(NefDict, self).__init__(name=inFrame.name)
+    self._nefFrame = inFrame
+    self._lastError = NEFVALID
 
-  def getTable(self, name):
+  def getTableNames(self):
     # return table 'name' if exists else None
-    pass
+    self._lastError = NEFVALID
+
+    return tuple([self._nefFrame[db].name for db in self._nefFrame.keys()
+              if isinstance(self._nefFrame[db], StarIo.NmrLoop)])
+
+  def getTable(self, name=None, asPandas=False):
+    # return table 'name' if exists else None
+    self._lastError = NEFVALID
+
+    try:
+      thisFrame = None
+      if name:
+        if name in self._nefFrame:
+          thisFrame = self._nefFrame[name]
+        else:
+          # table not found
+          self._lastError = NEFERROR_TABLEDOESNOTEXISTS
+          return None
+      else:
+        tables = self.getTableNames()
+        if tables:
+          thisFrame = self._nefFrame[tables[0]]
+
+      if asPandas:
+        return self._convertToPandas(thisFrame)
+      else:
+        table = []
+        for row in thisFrame.data:
+          newItem = OrderedDict()
+          for ky in row.keys():
+            newItem[ky] = row[ky]
+          table.append(newItem)
+
+        return table
+
+    except:
+      self._lastError = NEFERROR_GENERICGETTABLEERROR
+      return None
+
+  def multiColumnValues(self, column=None):
+    self._lastError = NEFVALID
+
+    return self._nefFrame.multiColumnValues(column=column)
 
   def hasTable(self, name):
     # return True is the table exists in the saveFrame
-    pass
+    self._lastError = NEFVALID
+
+    return name in self._nefFrame
 
   def setTable(self, name):
     # add the table 'name' to the saveFrame, or replace the existing
     # does this need to be here or in the main class?
     pass
 
+  def _convertToPandas(self, sf):
+    try:
+      df = pd.DataFrame(data=sf.data, columns=sf.columns)
+      df.replace({'.': np.NAN, 'true': True, 'false': False}, inplace=True)
+      return df
+    except Exception as es:
+      print ('Pandas error: %s' % str(es))
+      return None
+
+
 class NefImporter():
   """Top level data block for accessing object tree"""
   # put functions in here to read the contents of the dict.
   # superclassed from DataBlock which is of type StarContainer
   def __init__(self, name=None, programName='Unknown', programVersion='Unknown', project=None, initialise=True):
-
-    # import inspect
-
-    # keep a copy of the original dataExtent
     self.name = name
     self._nefDict = StarIo.NmrDataBlock()     # empty block
-
-    # these should all be wrapped
-    # # property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
-    # methodNames = inspect.getmembers(inDict, predicate=inspect.ismethod)
-    #
-    # # add the method to point to our loaded dataExtent
-    # for met in methodNames:
-    #   setattr(self.__class__, met[0], met[1])
-
-    # define a new Nef structure
-    # if project is not None then build a new Nef structure from the Ccpn project
 
     if project:
       # new project here - program and version name from project
@@ -362,7 +415,19 @@ class NefImporter():
       pass
 
     if initialise:
+      # initialise a basic object
       self.initialise()
+
+    # methodNames = inspect.getmembers(inDict, predicate=inspect.ismethod)
+    #
+    # # add the method to point to our loaded dataExtent
+    # for met in methodNames:
+    #   setattr(self.__class__, met[0], met[1])
+    # setattr(self.__class__, 'get_' + NEF_CATEGORIES[0] + 's',
+    #         NefImporter._getListType(self, _listType=NEF_CATEGORIES[0]))
+
+  def _getListType(self, _listType):
+      return [self._nefDict[db] for db in self._nefDict.keys() if _listType in db]
 
   def initialise(self):
     self._nefDict['nef_nmr_meta_data'] = StarIo.NmrDataBlock()
@@ -477,23 +542,31 @@ class NefImporter():
                                 required_loops=PL_REQUIRED_LOOPS)
 
   def toString(self):
+    self._lastError = NEFVALID
+
     try:
       return self._nefDict.toString()
     except:
+      self._lastError = NEFERROR_BADTOSTRING
       return None
 
   # should this be static
   def fromString(self, text, strict=True):
     # set the Nef from the contents of the string, opposite of toString
+    self._lastError = NEFVALID
+
     dataExtent = StarIo.parseNef(text=text)
     if dataExtent:
       dbs = [dataExtent[db] for db in dataExtent.keys()]
       if dbs:
         self._nefDict = dbs[0]
     else:
+      self._lastError = NEFERROR_BADFROMSTRING
       self._nefDict = None
 
   def loadFile(self, fileName=None, mode='standard'):
+    self._lastError = NEFVALID
+
     try:
       nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
       self._nefDict = list(nefDataExtent.values())
@@ -504,23 +577,31 @@ class NefImporter():
 
       return True
     except:
+      self._lastError = NEFERROR_ERRORLOADINGFILE
       return False        # trap any errors and return False
 
   def saveFile(self, fileName=None, mode='standard'):
+    self._lastError = NEFVALID
+
     try:
       with open(fileName, 'w') as op:
         op.write(self._nefDict.toString())
 
       return True
     except:
+      self._lastError = NEFERROR_ERRORSAVINGFILE
       return False        # trap any errors and return False
 
   def getCategories(self):
     # return a list of the categories available in a Nef file
+    self._lastError = NEFVALID
+
     return tuple(NEF_CATEGORIES)
 
   def getSaveFrameNames(self, filter=NEF_RETURNALL):
     # return a list of the saveFrames in the file
+    self._lastError = NEFVALID
+
     names = [self._nefDict[db].name for db in self._nefDict.keys()
              if isinstance(self._nefDict[db], StarIo.NmrSaveFrame)]
 
@@ -531,12 +612,26 @@ class NefImporter():
 
     return tuple(names)
 
+  def hasSaveFrame(self, name):
+    # return True if the saveFrame exists, else False
+    self._lastError = NEFVALID
+
+    return name in self._nefDict
+
   def getSaveFrame(self, sfName):
     # return the saveFrame 'name'
+    self._lastError = NEFVALID
+
     if sfName in self._nefDict:
       return NefDict(self._nefDict[sfName])
 
+    self._lastError = NEFERROR_SAVEFRAMEDOESNOTEXIST
     return None
+
+  def getLastError(self):
+    # return the error code of the last action
+    return self._lastError
+
 
 if __name__ == '__main__':
   from ccpn.ui.gui.widgets.Application import TestApplication
@@ -559,5 +654,35 @@ if __name__ == '__main__':
   sf1 = test.getSaveFrame(names[0])
   sf2 = test.getSaveFrame('notFound')
 
+  print (test.hasSaveFrame('notFound'))
+  print (test.hasSaveFrame(names[0]))
+
   ts = test.toString()
   test.fromString(ts)
+
+  print (sf1.name)
+  print (sf1.getTableNames())
+
+  table = sf1.getTable()
+  sf1.getTable('nmr_atom', asPandas=True)
+  table = sf1.getTable('nmr_atom', asPandas=True)
+
+  print (table)
+
+  print (sf1.hasTable('notFound'))
+  print (sf1.hasTable('nmr_residue'))
+
+  print (test.getSaveFrame(sfName='ccpn_assignment').getTable())
+  print (test.getSaveFrame(sfName='ccpn_assignment').getTable(name='nmr_residue', asPandas=True))
+  print (test.getSaveFrame(sfName='ccpn_assignment').getTable(name='notFound', asPandas=True))
+
+  test.saveFile('/Users/ejb66/PycharmProjects/Sec5Part3testing.nef')
+  print (test.getLastError())
+
+  import inspect
+  methodNames = inspect.getmembers(test, predicate=inspect.ismethod)
+
+  for met in methodNames:
+    print (met)
+
+  print (test._getListType('nef_nmr_meta_data'))
