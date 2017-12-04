@@ -418,16 +418,61 @@ class NefImporter():
       # initialise a basic object
       self.initialise()
 
-    # methodNames = inspect.getmembers(inDict, predicate=inspect.ismethod)
+    # import inspect
+    # from functools import partial
+    # methodNames = [mt for mt in inspect.getmembers(self, predicate=inspect.ismethod) if 'ListType' in mt[0]]
+    # #
+    # # # add the method to point to our loaded dataExtent
+    # # for met in methodNames:
+    # #   setattr(self.__class__, met[0], met[1])
     #
-    # # add the method to point to our loaded dataExtent
-    # for met in methodNames:
-    #   setattr(self.__class__, met[0], met[1])
-    # setattr(self.__class__, 'get_' + NEF_CATEGORIES[0] + 's',
-    #         NefImporter._getListType(self, _listType=NEF_CATEGORIES[0]))
+    # typeName = 'get_' + NEF_CATEGORIES[0] + 's'
+    # setattr(self.__class__, typeName, partial(methodNames[0][1], NEF_CATEGORIES[0]))
 
-  def _getListType(self, _listType):
-      return [self._nefDict[db] for db in self._nefDict.keys() if _listType in db]
+  # def _getListType(self, _listType):
+  #     return [self._nefDict[db] for db in self._nefDict.keys() if _listType in db]
+
+  NEF_CATEGORIES = ['nef_nmr_meta_data',
+                    'nef_molecular_system',
+                    'nef_chemical_shift_list',
+                    'nef_distance_restraint_list',
+                    'nef_dihedral_restraint_list',
+                    'nef_rdc_restraint_list',
+                    'nef_nmr_spectrum',
+                    'nef_peak_restraint_links']
+
+  def get_nmr_meta_data(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_nmr_meta_data' in db]
+
+  def get_molecular_systems(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_molecular_system' in db]
+
+  def get_chemical_shift_lists(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_chemical_shift_list' in db]
+
+  def get_distance_restraint_lists(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_distance_restraint_list' in db]
+
+  def get_dihedral_restraint_lists(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_dihedral_restraint_list' in db]
+
+  def get_rdc_restraint_lists(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_rdc_restraint_list' in db]
+
+  def get_nmr_spectra(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_nmr_spectrum' in db]
+
+  def get_peak_restraint_links(self):
+    self._lastError = NEFVALID
+    return [self._nefDict[db] for db in self._nefDict.keys() if 'nef_peak_restraint_links' in db]
+
 
   def initialise(self):
     self._nefDict['nef_nmr_meta_data'] = StarIo.NmrDataBlock()
@@ -686,3 +731,4 @@ if __name__ == '__main__':
     print (met)
 
   print (test._getListType('nef_nmr_meta_data'))
+  print(test.get_nef_nmr_meta_datas())
