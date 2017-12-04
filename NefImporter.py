@@ -6,7 +6,19 @@ Module Contents
 
 NefImporter contains:
 
-  importFile        read a Nef file into a dataStructure
+  loadFile            read in the contents of a Nef file
+  getCategories       return the current categories defined in the Nef structure
+  getSaveFrameNames   return the names of the saveFrames with the file
+
+  getChemicalShiftLists
+  get<name>                   return the relevant structures of the Nef file
+                              defined by the available categories
+
+  getSaveFrame                return saveFrame of the given name
+    sf.getTable               return table name form the saveFrame
+    sf.hasTable               check if table exists
+    sf.setTable               set the table
+
 
 
 Details of the contents of Nef files can be found in GenericStarParser
@@ -61,18 +73,37 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 from . import GenericStarParser
 from . import StarIo
 
-class NefImporter(GenericStarParser.DataBlock):
+class NefDict(GenericStarParser.DataBlock):
+  # class to add functions to a saveFrame
+  def __init__(self, inDict):
+    super(NefDict, self).__init__(name=inDict.name)
+    self._nefDict = inDict
+
+  def getTable(self, name):
+    # return table 'name' if exists else None
+    pass
+
+  def hasTable(self, name):
+    # return True is the table exists in the saveFrame
+    pass
+
+  def setTable(self, name):
+    # add the table 'name' to the saveFrame, or replace the existing
+    # does this need to be here or in the main class?
+    pass
+
+
+class NefImporter():
   """Top level data block for accessing object tree"""
   # put functions in here to read the contents of the dict.
   # superclassed from DataBlock which is of type StarContainer
 
-  def __init__(self, inDict):
+  def __init__(self, programName='Unknown', programVersion='Unknown', project=None):
 
-    import inspect
+    # import inspect
 
     # keep a copy of the original dataExtent
-    super(NefImporter, self).__init__(name=inDict.name)
-    self._nefDict = inDict
+    self._nefDict = None
 
     # these should all be wrapped
     # # property_names = [p for p in dir(GenericStarParser.DataBlock) if isinstance(getattr(GenericStarParser.DataBlock, p), property)]
@@ -82,12 +113,41 @@ class NefImporter(GenericStarParser.DataBlock):
     # for met in methodNames:
     #   setattr(self.__class__, met[0], met[1])
 
-  def importFile(fileName, mode='standard'):
-    nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
-    outDict = list(nefDataExtent.values())
-    if len(outDict) > 1:
-      print(
-        'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
-    outDict = outDict[0]
+    # define a new Nef structure
+    # if project is not None then build a new Nef structure from the Ccpn project
 
-    return NefDict(outDict)
+    if project:
+      # new project here - program and version name from project
+      pass
+
+    else:
+      # new, empty project, set names as above
+      pass
+
+  def importFile(self, fileName, mode='standard'):
+    try:
+      nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
+      self._nefDict = list(nefDataExtent.values())
+      if len(self._nefDict) > 1:
+        print(
+          'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+        self._nefDict = self._nefDict[0]
+
+      return True
+    except:
+      return False        # trap any errors and return False
+
+  def getCategories(self):
+    # return a liost of the categories available in a Nef file
+    pass
+
+  def getSaveFrameNames(self):
+    # return a list of the saveFrames in the file
+    pass
+
+  def getSaveFrame(self, sfName):
+    # return the saveFrame 'name'
+    pass
+
+
+if __name__ == '__main__':
