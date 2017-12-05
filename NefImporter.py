@@ -50,6 +50,10 @@ NefImporter contains:
   toString            convert Nef dictionary to a string that can be written to a file
   fromString          convert string to Nef dictionary
 
+  getAttributeNames   get a list of the attributes attached to the dictionary
+  getAttribute        return the value of the attribute
+  hasAttribute        return True if the attribute Exists
+
   lastError           error code of the last operation
   lastErrorString     error string of the last operation
 
@@ -61,6 +65,10 @@ NefDict contains handling routines:
                   or as a Pandas DataFrame
   hasTable        return true of the table exists
   setTable        set the table - currently not implemented
+
+  getAttributeNames   get a list of the attributes attached to the saveFrame
+  getAttribute        return the value of the attribute
+  hasAttribute        return True if the attribute Exists
 
   lastError           error code of the last operation
   lastErrorString     error string of the last operation
@@ -399,22 +407,8 @@ NEFERROR_BADLISTTYPE = -11
 NEFERROR_BADFUNCTION = -12
 NEFERROR_BADCATEGORIES = -13
 NEFERROR_BADADDSAVEFRAME = -14
-
-NEFERRORS = ('bad saveFrame'
-            , 'bad categories'
-            , 'bad function'
-            , 'bad listType'
-            , 'bad table names'
-            , 'list type error'
-            , 'bad table names'
-            , 'bad multiColumnValues'
-            , 'bad convert from string'
-            , 'bad convert to string'
-            , 'error saving file'
-            , 'error loading file'
-            , 'saveFrame does not exist'
-            , 'table does not exist'
-            , 'table error')
+NEFERROR_READATTRIBUTENAMES = -15
+NEFERROR_READATTRIBUTE = -16
 
 class _errorLog():
   """
@@ -453,7 +447,9 @@ class _errorLog():
               , NEFERROR_ERRORLOADINGFILE: 'error loading file'
               , NEFERROR_SAVEFRAMEDOESNOTEXIST: 'saveFrame does not exist'
               , NEFERROR_TABLEDOESNOTEXIST: 'table does not exist'
-              , NEFERROR_GENERICGETTABLEERROR: 'table error'}
+              , NEFERROR_GENERICGETTABLEERROR: 'table error'
+              , NEFERROR_READATTRIBUTENAMES: 'error reading attribute names'
+              , NEFERROR_READATTRIBUTE: 'error reading attribute'}
 
   def __init__(self, logOutput=sys.stderr.write, loggingMode=NEF_STANDARD, errorCode=NEFVALID):
     self._logOutput = logOutput
@@ -516,7 +512,7 @@ class _errorLog():
     if errorCode != NEFVALID:
       self._lastError = errorCode
       if not errorString:
-        errorString = NEFERRORS[errorCode]
+        errorString = self.NEFERRORS[errorCode]
       self._lastErrorString = 'runtimeError: '+str(errorCode)+' '+errorString+'\n'
       if self._loggingMode != NEF_SILENT:
         try:
@@ -563,7 +559,7 @@ class NefDict(StarIo.NmrSaveFrame):
   @_errorLog(errorCode=NEFERROR_BADTABLENAMES)
   def getTableNames(self):
     # return table 'name' if exists else None
-    return tuple([self._nefFrame[db].name for db in self._nefFrame.keys()
+    return tuple([db for db in self._nefFrame.keys()
               if isinstance(self._nefFrame[db], StarIo.NmrLoop)])
 
   @_errorLog(errorCode=NEFERROR_GENERICGETTABLEERROR)
@@ -608,6 +604,19 @@ class NefDict(StarIo.NmrSaveFrame):
       return df
     except Exception as es:
       return None
+
+  @_errorLog(errorCode=NEFERROR_READATTRIBUTENAMES)
+  def getAttributeNames(self):
+    return tuple([db for db in self._nefFrame.keys()
+              if not isinstance(self._nefFrame[db], StarIo.NmrLoop)])
+
+  @_errorLog(errorCode=NEFERROR_READATTRIBUTE)
+  def getAttribute(self, name):
+    return self._nefFrame[name]
+
+  @_errorLog(errorCode=NEFERROR_READATTRIBUTE)
+  def hasAttribute(self, name):
+    return name in self._nefFrame
 
   @property
   def lastErrorString(self):
@@ -861,7 +870,7 @@ class NefImporter():
   @_errorLog(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
   def getSaveFrameNames(self, filter=NEF_RETURNALL):
     # return a list of the saveFrames in the file
-    names = [self._nefDict[db].name for db in self._nefDict.keys()
+    names = [db for db in self._nefDict.keys()
              if isinstance(self._nefDict[db], StarIo.NmrSaveFrame)]
 
     if filter == NEF_RETURNNEF:
@@ -880,6 +889,21 @@ class NefImporter():
   def getSaveFrame(self, sfName):
     # return the saveFrame 'name'
     return NefDict(self._nefDict[sfName], _errorLogger=self._errorLogger)
+
+  @_errorLog(errorCode=NEFERROR_READATTRIBUTENAMES)
+  def getAttributeNames(self):
+    names = [db for db in self._nefDict.keys()
+             if not isinstance(self._nefDict[db], StarIo.NmrSaveFrame)]
+
+    return tuple(names)
+
+  @_errorLog(errorCode=NEFERROR_READATTRIBUTE)
+  def getAttribute(self, name):
+    return self._nefDict[name]
+
+  @_errorLog(errorCode=NEFERROR_READATTRIBUTE)
+  def hasAttribute(self, name):
+    return name in self._nefDict
 
   @property
   def lastErrorString(self):
@@ -927,7 +951,7 @@ if __name__ == '__main__':
   ts = test.toString()
   test.fromString(ts)
 
-  if sf1:
+  if sf1 is not None:
     print (sf1.name)
     print (sf1.getTableNames())
 
@@ -939,6 +963,12 @@ if __name__ == '__main__':
 
     print (sf1.hasTable('notFound'))
     print (sf1.hasTable('nmr_residue'))
+
+    print (sf1.getAttributeNames())
+    print (sf1.getAttribute('notHere'))
+    print (sf1.getAttribute('sf_category'))
+    print (sf1.hasAttribute('sf_framecode'))
+    print (sf1.hasAttribute('nothing'))
 
   print ('Testing getTable')
   try:
@@ -970,13 +1000,15 @@ if __name__ == '__main__':
   print (test.getPeakRestraintLinks())
   print (test.getRdcRestraintLists())
 
-  # sp = test.get_nmr_spectra()
+  # sp = test.getNmrSpectra()
   # if sp:
   #   for spp in sp:
   #     print (spp.getTableNames())
   #     print (spp.getTable('nef_spectrum_dimension', asPandas=True))
   #
-  # print (test.get_molecular_systems().getTable('nef_sequence'))
-  # print (test.get_chemical_shift_lists().getTable(asPandas=True))
+  # print (test.getMolecularSystems().getTable('nef_sequence'))
+  # print (test.getChemicalShiftLists().getTable(asPandas=True))
+  #
+  # print (test._nefDict.tagPrefix)
 
-  print (test._nefDict.tagPrefix)
+  print (test.getAttributeNames())
