@@ -314,6 +314,10 @@ NEF_RETURNNEF = 'nef_'
 NEF_RETURNOTHER = 'other'
 NEF_PREFIX = 'nef_'
 
+NEF_STANDARD = 'standard'
+NEF_SILENT = 'silent'
+NEF_STRICT = 'strict'
+
 NEFVALID = 0
 NEFERROR_GENERICGETTABLEERROR = -1
 NEFERROR_TABLEDOESNOTEXIST = -2
@@ -331,7 +335,73 @@ NEFERROR_BADCATEGORIES = -13
 NEFERROR_BADADDSAVEFRAME = -14
 
 
+class _errorLog():
+  """
+  A class to facilitate Logging of errors to stderr.
+
+  example:
+    errorLogging.logError('Error: %s' % errorMessage)
+
+  functions available are:
+
+    logError              write message to the current output
+    func = logger         return the current logger
+    logger = func         set the current logger
+    loggingMode = mode    set the logging mode where mode is:
+                          'standard', 'silent', 'strict'
+
+          current modes are:
+              'standard'      errors are written to the stderr, no errors are raised
+              'silent'        no errors are raised, no output to the stderr
+              'strict'        errors are logged to stderr and errors are raised
+                              to be handled by the calling functions
+
+    mode = logginMode     return the current mode.
+  """
+  _availableModes = (NEF_STANDARD, NEF_SILENT, NEF_STRICT)
+
+  def __init__(self, logOutput=sys.stderr.write, loggingMode=NEF_STANDARD):
+    self._logOutput = logOutput
+    self._loggingMode = loggingMode
+
+  def logError(self, errorCode):
+    # log errorCode to the current logger
+    if self._loggingMode != NEF_SILENT:
+      try:
+        self._logOutput('runtimeError: '+str(errorCode))
+        self._logOutput('\n')
+      except:
+        self._logOutput('LOGGING ERROR')
+        self._logOutput('\n')
+    if self._loggingMode == NEF_STRICT:
+      raise Exception('Error: from somewhere else: %s' % str(errorCode))
+
+  @property
+  def logger(self):
+    # return the current logger
+    return self._logOutput
+
+  @logger.setter
+  def logger(self, func):
+    # set the current logger
+    self._logOutput = func
+
+  @property
+  def loggingMode(self):
+    # return the current logger
+    return self._loggingMode
+
+  @loggingMode.setter
+  def loggingMode(self, loggingMode):
+    # set the current logger
+    if loggingMode in self._availableModes:
+      self._loggingMode = loggingMode
+
+
 class errorcheck():
+  """
+  Class to wrap functions with a standard error message
+  """
   def __init__(self, errorCode=NEFERROR_BADFUNCTION):
     self._errorCode = errorCode
 
@@ -339,30 +409,21 @@ class errorcheck():
     @wraps(func)
     def errortesting(obj, *args, **kwargs):
       try:
-        obj._lastError = NEFVALID
+        obj.lastError = NEFVALID
         return func(obj, *args, **kwargs)
-      except:
-        obj._lastError = self._errorCode
+      except Exception as es:
+        obj.lastError = self._errorCode     #, func, str(es))
         return None
     return errortesting
 
-# def errorcheck(func, errorCode=NEFVALID):
-#   def errortesting(self, *args, **kwargs):
-#     try:
-#       self._lastError = NEFVALID
-#       return func(self, *args, **kwargs)
-#     except:
-#       self._lastError = NEFERROR_BADFUNCTION
-#       return None
-#
-#   return errortesting
 
 class NefDict(StarIo.NmrSaveFrame):
   # class to add functions to a saveFrame
-  def __init__(self, inFrame):
+  def __init__(self, inFrame, _errorLogger=None):
     super(NefDict, self).__init__(name=inFrame.name)
     self._nefFrame = inFrame
     self._lastError = NEFVALID
+    self._errorLogger = _errorLogger
 
   def _namedToOrderedDict(self, frame):
     # change a saveFrame into a normal OrderedDict
@@ -425,32 +486,29 @@ class NefImporter():
   """Top level data block for accessing object tree"""
   # put functions in here to read the contents of the dict.
   # superclassed from DataBlock which is of type StarContainer
-  def __init__(self, name=None, programName='Unknown', programVersion='Unknown', project=None, initialise=True):
+  def __init__(self, name=None
+               , programName='Unknown'
+               , programVersion='Unknown'
+               , initialise=True
+               , errorLogging=NEF_STANDARD):
     self.name = name
     self._nefDict = StarIo.NmrDataBlock()     # empty block
     self.programName = programName
     self.programVersion = programVersion
-
-    if project:
-      # new project here - program and version name from project
-      pass
-
-    else:
-      # new, empty project, set names as above
-      pass
+    self._errorLogger = _errorLog(loggingMode=errorLogging)
 
     if initialise:
       # initialise a basic object
       self.initialise()
 
-    # short lop to add methods to the class based on the names in the NEF_CATEGORIES list
+    # short loop to add methods to the class based on the names in the NEF_CATEGORIES list
     # from functools import partial
     # for nefCategory in NEF_CATEGORIES:
     #   setattr(self.__class__, nefCategory[1], partial(self._getListType, nefCategory[0]))
 
   def _namedToNefDict(self, frame):
     # change a saveFrame into a normal OrderedDict
-    newItem = NefDict(inFrame=frame)
+    newItem = NefDict(inFrame=frame, _errorLogger=self._errorLogger)
     for ky in frame.keys():
       newItem[ky] = frame[ky]
     return newItem
@@ -686,11 +744,20 @@ class NefImporter():
     #
     # self._lastError = NEFERROR_SAVEFRAMEDOESNOTEXIST
     # return None
-    return NefDict(self._nefDict[sfName])
+    return NefDict(self._nefDict[sfName], _errorLogger=self._errorLogger)
 
-  def getLastError(self):
+  @property
+  def lastError(self):
     # return the error code of the last action
     return self._lastError
+
+  @lastError.setter
+  def lastError(self, errorCode=NEFVALID):
+    # return the error code of the last action
+    self._lastError = errorCode
+
+    if errorCode != NEFVALID:
+      self._errorLogger.logError(errorCode)
 
 
 if __name__ == '__main__':
@@ -700,7 +767,7 @@ if __name__ == '__main__':
 
   # TODO:ED write a test suite for this
   test = NefImporter()
-  test.loadFile('/Users/ejb66/PycharmProjects/Sec5Part3.nef')
+  test.loadFile('/Users/ejb66/PychartrmProjects/Sec5Part3.nef')
 
   print (test.getCategories())
   names = test.getSaveFrameNames()
@@ -755,7 +822,7 @@ if __name__ == '__main__':
 
   print ('Testing saveFile')
   print ('SAVE ', test.saveFile('/Users/ejb66/PycharmProjects/Sec5Part3testing.nef'))
-  print (test.getLastError())
+  print (test.lastError)
 
   # test meta creation of category names
   print (test.get_nmr_meta_data())
