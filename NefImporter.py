@@ -632,6 +632,26 @@ class NefDict(StarIo.NmrSaveFrame):
     # return the error code of the last action
     self._errorLogger._logError(errorCode=errorCode, errorString=errorString)
 
+  @property
+  def logger(self):
+    # return the current logger
+    return self._errorLogger._logOutput
+
+  @logger.setter
+  def logger(self, func):
+    # set the current logger
+    self._errorLogger._logOutput = func
+
+  @property
+  def loggingMode(self):
+    # return the current logger
+    return self._errorLogger._loggingMode
+
+  @loggingMode.setter
+  def loggingMode(self, loggingMode):
+    # set the current logger
+    self._errorLogger._loggingMode = loggingMode
+
 
 class NefImporter():
   """Top level data block for accessing object tree"""
@@ -918,6 +938,26 @@ class NefImporter():
   def _logError(self, errorCode=NEFVALID, errorString=''):
     # return the error code of the last action
     self._errorLogger._logError(errorCode=errorCode, errorString=errorString)
+
+  @property
+  def logger(self):
+    # return the current logger
+    return self._errorLogger._logOutput
+
+  @logger.setter
+  def logger(self, func):
+    # set the current logger
+    self._errorLogger._logOutput = func
+
+  @property
+  def loggingMode(self):
+    # return the current logger
+    return self._errorLogger._loggingMode
+
+  @loggingMode.setter
+  def loggingMode(self, loggingMode):
+    # set the current logger
+    self._errorLogger._loggingMode = loggingMode
 
 
 if __name__ == '__main__':
