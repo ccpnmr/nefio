@@ -53,14 +53,35 @@ NefImporter contains:
   lastError           error code of the last operation
   lastErrorString     error string of the last operation
 
+
 NefDict contains handling routines:
 
   getTableNames   return a list of the tables in the saveFrame
   getTable        return table from the saveFrame, it can be returned as an OrderedDict
                   or as a Pandas DataFrame
-  hasTable        check if table exists
+  hasTable        return true of the table exists
   setTable        set the table - currently not implemented
 
+  lastError           error code of the last operation
+  lastErrorString     error string of the last operation
+
+
+Error handling
+--------------
+
+Errors can be handled in three different modes:
+
+  'silent'            errors are handled internally and can be interrogated with saveFrame.lastError
+                      with no logging to the stderr
+
+  'standard'          errors are handled internally, error messages are logged to stderr.
+
+  'strict'            errors message are logged to stderr and errors are raised to be trapped by
+                      the calling functions
+
+  error handling mode can be set at the instantiation of the object, e.g.
+
+    newObject = NefImporter(errorLogging='standard')
 
 
 Nef File Contents
