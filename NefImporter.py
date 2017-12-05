@@ -4,24 +4,69 @@ NefImporter - a series of routines for reading a Nef file and examining the cont
 Module Contents
 ===============
 
+NefImporter consists of two classes: NefImporter - a class for handling the top-level object, and
+NefDict for handling individual saveFrames in the dictionary.
+
 NefImporter contains:
 
-  loadFile            read in the contents of a Nef file
+  initialise          initialise a new dictionary
+  loadFile            read in the contents of a .nef file
+  saveFile            save the dictionary to a .nef file
+
   getCategories       return the current categories defined in the Nef structure
   getSaveFrameNames   return the names of the saveFrames with the file
-
-  getChemicalShiftLists
-  get<name>                   return the relevant structures of the Nef file
-                              defined by the available categories
-
-  getSaveFrame                return saveFrame of the given name
-    sf.getTable               return table name form the saveFrame
-    sf.hasTable               check if table exists
-    sf.setTable               set the table
+  hasSaveFrame        return True if the saveFrame exists
+  getSaveFrame        return saveFrame of the given name
+  addSaveFrame        add a new saveFrame to the dictionary
 
 
+  get<name>           return the relevant structures of the Nef file
+                      defined by the available categories, where <name> can be:
 
-Details of the contents of Nef files can be found in GenericStarParser
+                          NmrMetaData
+                          MolecularSystems
+                          ChemicalShiftLists
+                          DistanceRestraintLists
+                          DihedralRestraintLists
+                          RdcRestraintLists
+                          NmrSpectra
+                          PeakRestraintLinks
+
+                      e.g. getChemicalShiftLists
+
+  add<name>           add a new saveFrame to the dictionary
+                      defined by the available categories, where <name> can be:
+
+                          ChemicalShiftList
+                          DistanceRestraintList
+                          DihedralRestraintList
+                          RdcRestraintList
+                          NmrSpectra
+                          PeakLists
+                          LinkageTables
+
+                      e.g. addChemicalShiftList
+
+  toString            convert Nef dictionary to a string that can be written to a file
+  fromString          convert string to Nef dictionary
+
+  lastError           error code of the last operation
+  lastErrorString     error string of the last operation
+
+NefDict contains handling routines:
+
+  getTableNames   return a list of the tables in the saveFrame
+  getTable        return table from the saveFrame, it can be returned as an OrderedDict
+                  or as a Pandas DataFrame
+  hasTable        check if table exists
+  setTable        set the table - currently not implemented
+
+
+
+Nef File Contents
+-----------------
+
+More details of the contents of Nef files can be found in GenericStarParser
 The general structure of a Nef file is:
 
 ::
@@ -401,11 +446,11 @@ class _errorLog():
     @wraps(func)
     def errortesting(obj, *args, **kwargs):
       try:
-        obj.logError(errorCode=NEFVALID)
+        obj._logError(errorCode=NEFVALID)
         return func(obj, *args, **kwargs)
       except Exception as es:
         _type, _value, _traceback = sys.exc_info()
-        obj.logError(errorCode=NEFERROR_BADFUNCTION, errorString=str(obj)+str(_type)+str(es))
+        obj._logError(errorCode=NEFERROR_BADFUNCTION, errorString=str(obj)+str(_type)+str(es))
         return None
     return errortesting
 
@@ -444,7 +489,7 @@ class _errorLog():
     self._lastError = NEFVALID
     self._lastErrorString = ''
 
-  def logError(self, errorCode=NEFVALID, errorString=''):
+  def _logError(self, errorCode=NEFVALID, errorString=''):
     # log errorCode to the current logger
     self._clearError()
     if errorCode != NEFVALID:
@@ -509,7 +554,7 @@ class NefDict(StarIo.NmrSaveFrame):
         thisFrame = self._nefFrame[name]
       else:
         # table not found
-        self.logError(errorCode=NEFERROR_TABLEDOESNOTEXIST)
+        self._logError(errorCode=NEFERROR_TABLEDOESNOTEXIST)
         return None
     else:
       tables = self.getTableNames()
@@ -553,9 +598,9 @@ class NefDict(StarIo.NmrSaveFrame):
     # return the error code of the last action
     return self._errorLogger.lastError
 
-  def logError(self, errorCode=NEFVALID, errorString=''):
+  def _logError(self, errorCode=NEFVALID, errorString=''):
     # return the error code of the last action
-    self._errorLogger.logError(errorCode=errorCode, errorString=errorString)
+    self._errorLogger._logError(errorCode=errorCode, errorString=errorString)
 
 
 class NefImporter():
@@ -650,7 +695,7 @@ class NefImporter():
 
       self.addChemicalShiftList('nef_chemical_shift_list_1', 'ppm')
 
-    self.logError(errorCode=NEFVALID)
+    self._logError(errorCode=NEFVALID)
 
   @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
   def addSaveFrame(self, name, category, required_fields=None, required_loops=None):
@@ -825,9 +870,9 @@ class NefImporter():
     # return the error code of the last action
     return self._errorLogger.lastError
 
-  def logError(self, errorCode=NEFVALID, errorString=''):
+  def _logError(self, errorCode=NEFVALID, errorString=''):
     # return the error code of the last action
-    self._errorLogger.logError(errorCode=errorCode, errorString=errorString)
+    self._errorLogger._logError(errorCode=errorCode, errorString=errorString)
 
 
 if __name__ == '__main__':
