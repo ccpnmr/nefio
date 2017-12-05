@@ -334,6 +334,21 @@ NEFERROR_BADFUNCTION = -12
 NEFERROR_BADCATEGORIES = -13
 NEFERROR_BADADDSAVEFRAME = -14
 
+NEFERRORS = ('bad saveFrame'
+            , 'bad categories'
+            , 'bad function'
+            , 'bad listType'
+            , 'bad table names'
+            , 'list type error'
+            , 'bad table names'
+            , 'bad multiColumnValues'
+            , 'bad convert from string'
+            , 'bad convert to string'
+            , 'error saving file'
+            , 'error loading file'
+            , 'saveFrame does not exist'
+            , 'table does not exist'
+            , 'table error')
 
 class _errorLog():
   """
@@ -359,22 +374,40 @@ class _errorLog():
     mode = logginMode     return the current mode.
   """
   _availableModes = (NEF_STANDARD, NEF_SILENT, NEF_STRICT)
+  NEFERRORS = {NEFERROR_BADADDSAVEFRAME: 'bad add saveFrame'
+              , NEFERROR_BADCATEGORIES: 'bad categories'
+              , NEFERROR_BADFUNCTION: ''
+              , NEFERROR_BADLISTTYPE: 'bad listType'
+              , NEFERROR_BADTABLENAMES: 'bad table names'
+              , NEFERROR_LISTTYPEERROR: 'list type error'
+              , NEFERROR_BADMULTICOLUMNVALUES: 'bad multiColumnValues'
+              , NEFERROR_BADFROMSTRING: 'bad convert from string'
+              , NEFERROR_BADTOSTRING: 'bad convert to string'
+              , NEFERROR_ERRORSAVINGFILE: 'error saving file'
+              , NEFERROR_ERRORLOADINGFILE: 'error loading file'
+              , NEFERROR_SAVEFRAMEDOESNOTEXIST: 'saveFrame does not exist'
+              , NEFERROR_TABLEDOESNOTEXIST: 'table does not exist'
+              , NEFERROR_GENERICGETTABLEERROR: 'table error'}
 
-  def __init__(self, logOutput=sys.stderr.write, loggingMode=NEF_STANDARD):
+  def __init__(self, logOutput=sys.stderr.write, loggingMode=NEF_STANDARD, errorCode=NEFVALID):
     self._logOutput = logOutput
     self._loggingMode = loggingMode
+    self._lastError = errorCode
 
-  def logError(self, errorCode):
-    # log errorCode to the current logger
-    if self._loggingMode != NEF_SILENT:
+  def __call__(self, func):
+    # method that is called when used as a decorator for functions
+    import traceback
+
+    @wraps(func)
+    def errortesting(obj, *args, **kwargs):
       try:
-        self._logOutput('runtimeError: '+str(errorCode))
-        self._logOutput('\n')
-      except:
-        self._logOutput('LOGGING ERROR')
-        self._logOutput('\n')
-    if self._loggingMode == NEF_STRICT:
-      raise Exception('Error: from somewhere else: %s' % str(errorCode))
+        obj.logError(errorCode=NEFVALID)
+        return func(obj, *args, **kwargs)
+      except Exception as es:
+        _type, _value, _traceback = sys.exc_info()
+        obj.logError(errorCode=NEFERROR_BADFUNCTION, errorString=str(obj)+str(_type)+str(es))
+        return None
+    return errortesting
 
   @property
   def logger(self):
@@ -397,24 +430,54 @@ class _errorLog():
     if loggingMode in self._availableModes:
       self._loggingMode = loggingMode
 
+  @property
+  def lastErrorString(self):
+    # return the error code of the last action
+    return self._lastErrorString
 
-class errorcheck():
-  """
-  Class to wrap functions with a standard error message
-  """
-  def __init__(self, errorCode=NEFERROR_BADFUNCTION):
-    self._errorCode = errorCode
+  @property
+  def lastError(self):
+    # return the error code of the last action
+    return self._lastError
 
-  def __call__(self, func):
-    @wraps(func)
-    def errortesting(obj, *args, **kwargs):
-      try:
-        obj.lastError = NEFVALID
-        return func(obj, *args, **kwargs)
-      except Exception as es:
-        obj.lastError = self._errorCode     #, func, str(es))
-        return None
-    return errortesting
+  def _clearError(self):
+    self._lastError = NEFVALID
+    self._lastErrorString = ''
+
+  def logError(self, errorCode=NEFVALID, errorString=''):
+    # log errorCode to the current logger
+    self._clearError()
+    if errorCode != NEFVALID:
+      self._lastError = errorCode
+      if not errorString:
+        errorString = NEFERRORS[errorCode]
+      self._lastErrorString = 'runtimeError: '+str(errorCode)+' '+errorString+'\n'
+      if self._loggingMode != NEF_SILENT:
+        try:
+          self._logOutput(self._lastErrorString)
+        except Exception as es:
+          raise es
+      if self._loggingMode == NEF_STRICT:
+        raise Exception(str(self._lastErrorString))
+    pass
+
+# class errorcheck():
+#   """
+#   Class to wrap functions with a standard error message
+#   """
+#   def __init__(self, errorCode=NEFERROR_BADFUNCTION):
+#     self._errorCode = errorCode
+#
+#   def __call__(self, func):
+#     @wraps(func)
+#     def errortesting(obj, *args, **kwargs):
+#       try:
+#         obj.lastError = NEFVALID
+#         return func(obj, *args, **kwargs)
+#       except Exception as es:
+#         obj.lastError = self._errorCode     #, func, str(es))
+#         return None
+#     return errortesting
 
 
 class NefDict(StarIo.NmrSaveFrame):
@@ -422,7 +485,6 @@ class NefDict(StarIo.NmrSaveFrame):
   def __init__(self, inFrame, _errorLogger=None):
     super(NefDict, self).__init__(name=inFrame.name)
     self._nefFrame = inFrame
-    self._lastError = NEFVALID
     self._errorLogger = _errorLogger
 
   def _namedToOrderedDict(self, frame):
@@ -432,13 +494,13 @@ class NefDict(StarIo.NmrSaveFrame):
       newItem[ky] = frame[ky]
     return newItem
 
-  @errorcheck(errorCode=NEFERROR_BADTABLENAMES)
+  @_errorLog(errorCode=NEFERROR_BADTABLENAMES)
   def getTableNames(self):
     # return table 'name' if exists else None
     return tuple([self._nefFrame[db].name for db in self._nefFrame.keys()
               if isinstance(self._nefFrame[db], StarIo.NmrLoop)])
 
-  @errorcheck(errorCode=NEFERROR_GENERICGETTABLEERROR)
+  @_errorLog(errorCode=NEFERROR_GENERICGETTABLEERROR)
   def getTable(self, name=None, asPandas=False):
     # return table 'name' if exists else None
     thisFrame = None
@@ -447,7 +509,7 @@ class NefDict(StarIo.NmrSaveFrame):
         thisFrame = self._nefFrame[name]
       else:
         # table not found
-        self._lastError = NEFERROR_TABLEDOESNOTEXIST
+        self.logError(errorCode=NEFERROR_TABLEDOESNOTEXIST)
         return None
     else:
       tables = self.getTableNames()
@@ -459,11 +521,11 @@ class NefDict(StarIo.NmrSaveFrame):
     else:
       return [self._namedToOrderedDict(sf) for sf in thisFrame.data]
 
-  @errorcheck(errorCode=NEFERROR_BADMULTICOLUMNVALUES)
+  @_errorLog(errorCode=NEFERROR_BADMULTICOLUMNVALUES)
   def multiColumnValues(self, column=None):
     return self._nefFrame.multiColumnValues(column=column)
 
-  @errorcheck(errorCode=NEFERROR_TABLEDOESNOTEXIST)
+  @_errorLog(errorCode=NEFERROR_TABLEDOESNOTEXIST)
   def hasTable(self, name):
     # return True is the table exists in the saveFrame
     return name in self._nefFrame
@@ -480,6 +542,20 @@ class NefDict(StarIo.NmrSaveFrame):
       return df
     except Exception as es:
       return None
+
+  @property
+  def lastErrorString(self):
+    # return the error code of the last action
+    return self._errorLogger._lastErrorString
+
+  @property
+  def lastError(self):
+    # return the error code of the last action
+    return self._errorLogger.lastError
+
+  def logError(self, errorCode=NEFVALID, errorString=''):
+    # return the error code of the last action
+    self._errorLogger.logError(errorCode=errorCode, errorString=errorString)
 
 
 class NefImporter():
@@ -513,7 +589,7 @@ class NefImporter():
       newItem[ky] = frame[ky]
     return newItem
 
-  @errorcheck(errorCode=NEFERROR_BADLISTTYPE)
+  @_errorLog(errorCode=NEFERROR_BADLISTTYPE)
   def _getListType(self, _listType):
     # return a list of '_listType' from the saveFrame, used with nefCategory
     if self._nefDict and isinstance(self._nefDict, OrderedDict):
@@ -525,33 +601,32 @@ class NefImporter():
       elif sfList:
         return sfList[0]
 
-    self._lastError = NEFERROR_LISTTYPEERROR
     return None
 
   # routines to get the Nef specific data from the dictionary
   # this was done using the metafunction above but this doesn't give hints
-  def get_nmr_meta_data(self):
+  def getNmrMetaData(self):
     return self._getListType(NEF_CATEGORIES[0][0])
 
-  def get_molecular_systems(self):
+  def getMolecularSystems(self):
     return self._getListType(NEF_CATEGORIES[1][0])
 
-  def get_chemical_shift_lists(self):
+  def getChemicalShiftLists(self):
     return self._getListType(NEF_CATEGORIES[2][0])
 
-  def get_distance_restraint_lists(self):
+  def getDistanceRestraintLists(self):
     return self._getListType(NEF_CATEGORIES[3][0])
 
-  def get_dihedral_restraint_lists(self):
+  def getDihedralRestraintLists(self):
     return self._getListType(NEF_CATEGORIES[4][0])
 
-  def get_rdc_restraint_lists(self):
+  def getRdcRestraintLists(self):
     return self._getListType(NEF_CATEGORIES[5][0])
 
-  def get_nmr_spectra(self):
+  def getNmrSpectra(self):
     return self._getListType(NEF_CATEGORIES[6][0])
 
-  def get_peak_restraint_links(self):
+  def getPeakRestraintLinks(self):
     return self._getListType(NEF_CATEGORIES[7][0])
 
   def initialise(self):
@@ -573,11 +648,11 @@ class NefImporter():
     for l in MS_REQUIRED_LOOPS:
       self._nefDict['nef_molecular_system'][l] = []
 
-      self.add_chemical_shift_list('nef_chemical_shift_list_1', 'ppm')
+      self.addChemicalShiftList('nef_chemical_shift_list_1', 'ppm')
 
-    self._lastError = NEFVALID
+    self.logError(errorCode=NEFVALID)
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
   def addSaveFrame(self, name, category, required_fields=None, required_loops=None):
     self._nefDict[name] = StarIo.NmrSaveFrame()
     if required_fields is not None:
@@ -589,8 +664,8 @@ class NefImporter():
         self._nefDict[name][l] = []
     return self._nefDict[name]
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
-  def add_chemical_shift_list(self, name, cs_units='ppm'):
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
+  def addChemicalShiftList(self, name, cs_units='ppm'):
     category = 'nef_chemical_shift_list'
     self.addSaveFrame(name=name, category=category,
                        required_fields=CSL_REQUIRED_FIELDS,
@@ -598,8 +673,8 @@ class NefImporter():
     self._nefDict[name]['atom_chem_shift_units'] = cs_units
     return self._nefDict[name]
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
-  def add_distance_restraint_list(self, name, potential_type,
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
+  def addDistanceRestraintList(self, name, potential_type,
                                   restraint_origin=None):
     category = 'nef_distance_restraint_list'
     self.addSaveFrame(name=name, category=category,
@@ -611,8 +686,8 @@ class NefImporter():
 
     return self._nefDict[name]
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
-  def add_dihedral_restraint_list(self, name, potential_type,
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
+  def addDihedralRestraintList(self, name, potential_type,
                                   restraint_origin=None):
     category = 'nef_dihedral_restraint_list'
     self.addSaveFrame(name=name, category=category,
@@ -624,8 +699,8 @@ class NefImporter():
 
     return self._nefDict[name]
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
-  def add_rdc_restraint_list(self, name, potential_type,
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
+  def addRdcRestraintList(self, name, potential_type,
                              restraint_origin=None, tensor_magnitude=None,
                              tensor_rhombicity=None, tensor_chain_code=None,
                              tensor_sequence_code=None, tensor_residue_type=None):
@@ -649,8 +724,8 @@ class NefImporter():
 
     return self._nefDict[name]
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
-  def add_peak_list(self, name, num_dimensions, chemical_shift_list,
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
+  def addPeakList(self, name, num_dimensions, chemical_shift_list,
                     experiment_classification=None,
                     experiment_type=None):
     category = 'nef_nmr_spectrum'
@@ -670,19 +745,19 @@ class NefImporter():
         raise Exception('{} is not a nef_chemical_shift_list.'.format(chemical_shift_list))
     raise Exception('{} does not exist.'.format(chemical_shift_list))
 
-  @errorcheck(errorCode=NEFERROR_BADADDSAVEFRAME)
-  def add_linkage_table(self):
+  @_errorLog(errorCode=NEFERROR_BADADDSAVEFRAME)
+  def addLinkageTable(self):
     name = category = 'nef_peak_restraint_links'
     return self.addSaveFrame(name=name, category=category,
                               required_fields=PRLS_REQUIRED_FIELDS,
                               required_loops=PL_REQUIRED_LOOPS)
 
-  @errorcheck(errorCode=NEFERROR_BADTOSTRING)
+  @_errorLog(errorCode=NEFERROR_BADTOSTRING)
   def toString(self):
     return self._nefDict.toString()
 
   # should this be static
-  @errorcheck(errorCode=NEFERROR_BADFROMSTRING)
+  @_errorLog(errorCode=NEFERROR_BADFROMSTRING)
   def fromString(self, text, strict=True):
     # set the Nef from the contents of the string, opposite of toString
     dataExtent = StarIo.parseNef(text=text)
@@ -691,10 +766,10 @@ class NefImporter():
       if dbs:
         self._nefDict = dbs[0]
     else:
-      self._lastError = NEFERROR_BADFROMSTRING
+      self.lastError = NEFERROR_BADFROMSTRING
       self._nefDict = None
 
-  @errorcheck(errorCode=NEFERROR_ERRORLOADINGFILE)
+  @_errorLog(errorCode=NEFERROR_ERRORLOADINGFILE)
   def loadFile(self, fileName=None, mode='standard'):
     nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
     self._nefDict = list(nefDataExtent.values())
@@ -705,19 +780,19 @@ class NefImporter():
 
     return True
 
-  @errorcheck(errorCode=NEFERROR_ERRORSAVINGFILE)
+  @_errorLog(errorCode=NEFERROR_ERRORSAVINGFILE)
   def saveFile(self, fileName=None, mode='standard'):
     with open(fileName, 'w') as op:
       op.write(self._nefDict.toString())
 
     return True
 
-  @errorcheck(errorCode=NEFERROR_BADCATEGORIES)
+  @_errorLog(errorCode=NEFERROR_BADCATEGORIES)
   def getCategories(self):
     # return a list of the categories available in a Nef file
     return tuple([nm[0] for nm in NEF_CATEGORIES])
 
-  @errorcheck(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
+  @_errorLog(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
   def getSaveFrameNames(self, filter=NEF_RETURNALL):
     # return a list of the saveFrames in the file
     names = [self._nefDict[db].name for db in self._nefDict.keys()
@@ -730,34 +805,29 @@ class NefImporter():
 
     return tuple(names)
 
-  @errorcheck(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
+  @_errorLog(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
   def hasSaveFrame(self, name):
     # return True if the saveFrame exists, else False
     return name in self._nefDict
 
-  @errorcheck(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
+  @_errorLog(errorCode=NEFERROR_SAVEFRAMEDOESNOTEXIST)
   def getSaveFrame(self, sfName):
     # return the saveFrame 'name'
-
-    # if self._nefDict and isinstance(self._nefDict, OrderedDict) and sfName in self._nefDict:
-    #   return NefDict(self._nefDict[sfName])
-    #
-    # self._lastError = NEFERROR_SAVEFRAMEDOESNOTEXIST
-    # return None
     return NefDict(self._nefDict[sfName], _errorLogger=self._errorLogger)
+
+  @property
+  def lastErrorString(self):
+    # return the error code of the last action
+    return self._errorLogger._lastErrorString
 
   @property
   def lastError(self):
     # return the error code of the last action
-    return self._lastError
+    return self._errorLogger.lastError
 
-  @lastError.setter
-  def lastError(self, errorCode=NEFVALID):
+  def logError(self, errorCode=NEFVALID, errorString=''):
     # return the error code of the last action
-    self._lastError = errorCode
-
-    if errorCode != NEFVALID:
-      self._errorLogger.logError(errorCode)
+    self._errorLogger.logError(errorCode=errorCode, errorString=errorString)
 
 
 if __name__ == '__main__':
@@ -767,7 +837,7 @@ if __name__ == '__main__':
 
   # TODO:ED write a test suite for this
   test = NefImporter()
-  test.loadFile('/Users/ejb66/PychartrmProjects/Sec5Part3.nef')
+  test.loadFile('/Users/ejb66/PycharmProjects/Sec5Part3.nef')
 
   print (test.getCategories())
   names = test.getSaveFrameNames()
@@ -825,14 +895,14 @@ if __name__ == '__main__':
   print (test.lastError)
 
   # test meta creation of category names
-  print (test.get_nmr_meta_data())
-  print (test.get_molecular_systems())
-  print (test.get_dihedral_restraint_lists())
-  print (test.get_distance_restraint_lists())
-  print (test.get_chemical_shift_lists())
-  print (test.get_nmr_spectra())
-  print (test.get_peak_restraint_links())
-  print (test.get_rdc_restraint_lists())
+  print (test.getNmrMetaData())
+  print (test.getMolecularSystems())
+  print (test.getDihedralRestraintLists())
+  print (test.getDistanceRestraintLists())
+  print (test.getChemicalShiftLists())
+  print (test.getNmrSpectra())
+  print (test.getPeakRestraintLinks())
+  print (test.getRdcRestraintLists())
 
   # sp = test.get_nmr_spectra()
   # if sp:
