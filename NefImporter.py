@@ -409,6 +409,8 @@ NEFERROR_BADCATEGORIES = -13
 NEFERROR_BADADDSAVEFRAME = -14
 NEFERROR_READATTRIBUTENAMES = -15
 NEFERROR_READATTRIBUTE = -16
+NEFERROR_BADKEYS = -17
+
 
 class _errorLog():
   """
@@ -449,7 +451,8 @@ class _errorLog():
               , NEFERROR_TABLEDOESNOTEXIST: 'table does not exist'
               , NEFERROR_GENERICGETTABLEERROR: 'table error'
               , NEFERROR_READATTRIBUTENAMES: 'error reading attribute names'
-              , NEFERROR_READATTRIBUTE: 'error reading attribute'}
+              , NEFERROR_READATTRIBUTE: 'error reading attribute'
+              , NEFERROR_BADKEYS: 'error reading keys'}
 
   def __init__(self, logOutput=sys.stderr.write, loggingMode=NEF_STANDARD, errorCode=NEFVALID):
     self._logOutput = logOutput
@@ -547,8 +550,11 @@ class NefDict(StarIo.NmrSaveFrame):
   def __init__(self, inFrame, _errorLogger=None):
     super(NefDict, self).__init__(name=inFrame.name)
     self._nefFrame = inFrame
+
+    # copy the errorLogger from the parent NefImporter object, can be changed with saveFrame.logger
     self._errorLogger = _errorLogger
 
+  @_errorLog(errorCode=NEFERROR_BADKEYS)
   def _namedToOrderedDict(self, frame):
     # change a saveFrame into a normal OrderedDict
     newItem = OrderedDict()
@@ -1051,4 +1057,12 @@ if __name__ == '__main__':
   #
   # print (test._nefDict.tagPrefix)
 
+  sf1.loggingMode = NEF_STRICT
+  sf1.loggingMode = NEF_STANDARD
+  sf1.loggingMode = NEF_SILENT
+  test.loggingMode = NEF_STANDARD
+  test.loggingMode = NEF_SILENT
+  test.loggingMode = NEF_STRICT
   print (test.getAttributeNames())
+  print (sf1.loggingMode)
+  print (test.loggingMode)
