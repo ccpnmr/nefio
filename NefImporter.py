@@ -743,6 +743,17 @@ class NefDict(StarIo.NmrSaveFrame):
     if self._errorLogger:
       self._errorLogger._loggingMode = loggingMode
 
+  @property
+  def hidePrefix(self):
+    # return the current logger
+    return self._hidePrefix
+
+  @hidePrefix.setter
+  def hidePrefix(self, newPrefix):
+    # set the current logger
+    if isinstance(newPrefix, bool):
+      self._hidePrefix = newPrefix
+
 
 class NefImporter():
   """Top level data block for accessing object tree"""
@@ -1105,6 +1116,17 @@ class NefImporter():
     if self._errorLogger:
       self._errorLogger._loggingMode = loggingMode
 
+  @property
+  def hidePrefix(self):
+    # return the current logger
+    return self._hidePrefix
+
+  @hidePrefix.setter
+  def hidePrefix(self, newPrefix):
+    # set the current logger
+    if isinstance(newPrefix, bool):
+      self._hidePrefix = newPrefix
+
 
 if __name__ == '__main__':
   from ccpn.ui.gui.widgets.Application import TestApplication
@@ -1223,6 +1245,7 @@ if __name__ == '__main__':
     sf1.loggingMode = NEF_STANDARD
     sf1.loggingMode = NEF_SILENT
     print (sf1.loggingMode)
+    print (sf1.hidePrefix)
 
   if test:
     test.loggingMode = NEF_STANDARD
@@ -1230,3 +1253,4 @@ if __name__ == '__main__':
     test.loggingMode = NEF_STRICT
     print (test.getAttributeNames())
     print (test.loggingMode)
+    print (test.hidePrefix)
