@@ -146,3 +146,4 @@ def getTokenIterator(text):
   return (StarToken(x.lastindex, x.group(x.lastindex))
           for x in _star_pattern.finditer(text))
 
+
