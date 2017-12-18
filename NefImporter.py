@@ -236,6 +236,7 @@ if __name__ == '__main__' and __package__ is None:
 
 from . import StarIo
 from . import ErrorLog as el
+from . import Validator
 
 
 MAJOR_VERSION = '0'
@@ -493,192 +494,6 @@ NEF_RETURNOTHER = 'other'
 NEF_PREFIX = 'nef_'
 
 
-class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
-  """
-  An orderedDict saveFrame object for extracting information from the NefImporter
-  """
-  def __init__(self, inFrame, errorLogging=el.NEF_STANDARD, hidePrefix=True):
-    """
-    Initialise a NefDict orderedDict object from a given saveFrame
-    :param inFrame:
-    :param errorLogging:
-    :param hidePrefix:
-    """
-    StarIo.NmrSaveFrame.__init__(self, name=inFrame.name)
-    el.ErrorLog.__init__(self, loggingMode=errorLogging)
-
-    self._nefFrame = inFrame
-    self._hidePrefix = hidePrefix
-
-  def _removePrefix(self, name):
-    """
-    Remove the prefix 'nef_' from the saveFrame category name
-    :param nef_name:
-    :return <name>:
-    """
-    if self._hidePrefix:
-      for db in NEF_CATEGORIES_REMOVEPREFIX.keys():
-        if name.startswith(db):
-          name = name.replace(db, NEF_CATEGORIES_REMOVEPREFIX[db], 1)
-          break
-    return name
-
-  def _insertPrefix(self, name):
-    """
-    Insert the prefix 'nef_' into the saveFrame category name
-    :param name:
-    :return nef_<name>:
-    """
-    if self._hidePrefix:
-      for db in NEF_CATEGORIES_INSERTPREFIX.keys():
-        if name.startswith(db):
-          name = name.replace(db, NEF_CATEGORIES_INSERTPREFIX[db], 1)
-          break
-    return name
-
-  @el.ErrorLog(errorCode=el.NEFERROR_BADKEYS)
-  def _namedToOrderedDict(self, frame):
-    """
-    Convert a named saveFrame to a standard orderedDict
-    :param frame:
-    :return orderedDict:
-    """
-    newItem = OrderedDict()
-    for ky in frame.keys():
-      newItem[ky] = frame[ky]
-    return newItem
-
-  @el.ErrorLog(errorCode=el.NEFERROR_BADTABLENAMES)
-  def getTableNames(self):
-    """
-    Return list of attributes in the saveFrame
-    :return list or None:
-    """
-    return tuple([self._removePrefix(db) for db in self._nefFrame.keys()
-              if isinstance(self._nefFrame[db], StarIo.NmrLoop)])
-
-  @el.ErrorLog(errorCode=el.NEFERROR_GENERICGETTABLEERROR)
-  def getTable(self, name=None, asPandas=False):
-    """
-    Return the table 'name' from the saveFrame if it exists
-    if asPandas is True then return as a pandas dataFrame,
-    otherwise return a list of saveFrames
-    :param name:
-    :param asPandas:
-    :return saveFrames, dataFrames or None:
-    """
-    # return table 'name' if exists else None
-    thisFrame = None
-    if name:
-      if name in self._nefFrame:
-        thisFrame = self._nefFrame[name]
-      else:
-        # table not found
-        name = self._insertPrefix(name)
-        if name in self._nefFrame:
-          thisFrame = self._nefFrame[name]
-        else:
-          self._logError(errorCode=el.NEFERROR_TABLEDOESNOTEXIST)
-          return None
-    else:
-      tables = self.getTableNames()
-      if tables:
-        thisFrame = self._nefFrame[tables[0]]
-
-    if asPandas:
-      return self._convertToPandas(thisFrame)
-    else:
-      return [self._namedToOrderedDict(sf) for sf in thisFrame.data]
-
-  @el.ErrorLog(errorCode=el.NEFERROR_BADMULTICOLUMNVALUES)
-  def multiColumnValues(self, column=None):
-    """
-    Return tuple of orderedDict of values for columns.
-    Will work whether columns are in a loop or single values
-    If columns match a single loop or nothing, return the loop data.
-    Otherwise return a tuple with a single OrderedDict.
-    If no column matches return None
-    If columns match more than one loop throw an error
-    :param column:
-    :return orderedDicts:
-    """
-    return self._nefFrame.multiColumnValues(column=column)
-
-  @el.ErrorLog(errorCode=el.NEFERROR_TABLEDOESNOTEXIST)
-  def hasTable(self, name):
-    """
-    Return True if table 'name' exists in the saveFrame
-    :param name:
-    :return True or False:
-    """
-    # return True is the table exists in the saveFrame
-    name = self._insertPrefix(name)
-    return name in self._nefFrame
-
-  def setTable(self, name):
-    # add the table 'name' to the saveFrame, or replace the existing
-    # does this need to be here or in the main class?
-    print ('Not implemented yet.')
-
-  def _convertToPandas(self, sf):
-    """
-    Convert the saveFrame to a Pandas dataFrame
-    :return dataFrame or None on error:
-    """
-    try:
-      df = pd.DataFrame(data=sf.data, columns=sf.columns)
-      df.replace({'.': np.NAN, 'true': True, 'false': False}, inplace=True)
-      return df
-    except:
-      return None
-
-  @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTENAMES)
-  def getAttributeNames(self):
-    """
-    Return list of attributes in the saveFrame
-    :return list or None:
-    """
-    return tuple([self._removePrefix(db) for db in self._nefFrame.keys()
-              if not isinstance(self._nefFrame[db], StarIo.NmrLoop)])
-
-  @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTE)
-  def getAttribute(self, name):
-    """
-    Return attribute 'name' if in the saveFrame
-    :param name:
-    :return attribute:
-    """
-    name = self._insertPrefix(name)
-    return self._nefFrame[name]
-
-  @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTE)
-  def hasAttribute(self, name):
-    """
-    Return True if attribute 'name' is in the saveFrame
-    :param name:
-    :return True or False:
-    """
-    name = self._insertPrefix(name)
-    return name in self._nefFrame
-
-  @property
-  def hidePrefix(self):
-    # return the current hidePrefix state
-    # True - Nef prefixes 'nef_' are hidden
-    # False - Nef prefixes 'nef_' can be seen
-    # prefixes are still used in the saveFrames bit not seen in general use
-    return self._hidePrefix
-
-  @hidePrefix.setter
-  def hidePrefix(self, newPrefix):
-    # set the current hidePrefix state
-    # True - Nef prefixes 'nef_' are hidden
-    # False - Nef prefixes 'nef_' can be seen
-    # prefixes are still used in the saveFrames bit not seen in general use
-    if isinstance(newPrefix, bool):
-      self._hidePrefix = newPrefix
-
-
 class NefImporter(el.ErrorLog):
   """Top level data block for accessing object tree"""
   # put functions in here to read the contents of the dict.
@@ -690,7 +505,7 @@ class NefImporter(el.ErrorLog):
                , errorLogging=el.NEF_STANDARD
                , hidePrefix=True):
 
-    super(NefImporter, self).__init__(loggingMode=errorLogging)
+    el.ErrorLog.__init__(self, loggingMode=errorLogging)
 
     self.name = name
     self._nefDict = StarIo.NmrDataBlock()
@@ -698,10 +513,28 @@ class NefImporter(el.ErrorLog):
     self.programVersion = programVersion
     self._hidePrefix = hidePrefix
     self._saveFrameNames = {}
+    self._valid = Validator.Validator(self._nefDict)
 
     if initialise:
       # initialise a basic object
       self.initialise()
+
+  @property
+  def isValid(self):
+    """
+    Check whether the Nef object contains the required information
+    :return True or False:
+    """
+    return self._valid.isValid(self._nefDict)
+
+  @property
+  def validErrorLog(self):
+    """
+    Return the error log from checking validity
+    :return list:
+    """
+    self._valid.isValid(self._nefDict)
+    return self._valid.validation_errors
 
   def _namedToNefDict(self, frame):
     # change a saveFrame into a normal OrderedDict
@@ -1028,54 +861,191 @@ class NefImporter(el.ErrorLog):
     name = self._insertPrefix(name)
     return name in self._nefDict
 
-  # @property
-  # def lastErrorString(self):
-  #   # return the error code of the last action
-  #   if self.el.ErrorLogger:
-  #     return self.el.ErrorLogger._lastErrorString
-  #   else:
-  #     return None
-  #
-  # @property
-  # def lastError(self):
-  #   # return the error code of the last action
-  #   if self.el.ErrorLogger:
-  #     return self.el.ErrorLogger.lastError
-  #   else:
-  #     return None
-  #
-  # def _logError(self, errorCode=NEFVALID, errorString=''):
-  #   # return the error code of the last action
-  #   if self.el.ErrorLogger:
-  #     self.el.ErrorLogger._logError(errorCode=errorCode, errorString=errorString)
-  #
-  # @property
-  # def logger(self):
-  #   # return the current logger
-  #   if self.el.ErrorLogger:
-  #     return self.el.ErrorLogger._logOutput
-  #   else:
-  #     return None
-  #
-  # @logger.setter
-  # def logger(self, func):
-  #   # set the current logger
-  #   if self.el.ErrorLogger:
-  #     self.el.ErrorLogger._logOutput = func
-  #
-  # @property
-  # def loggingMode(self):
-  #   # return the current logger
-  #   if self.el.ErrorLogger:
-  #     return self.el.ErrorLogger._loggingMode
-  #   else:
-  #     return None
-  #
-  # @loggingMode.setter
-  # def loggingMode(self, loggingMode):
-  #   # set the current logger
-  #   if self.el.ErrorLogger:
-  #     self.el.ErrorLogger._loggingMode = loggingMode
+  @property
+  def hidePrefix(self):
+    # return the current hidePrefix state
+    # True - Nef prefixes 'nef_' are hidden
+    # False - Nef prefixes 'nef_' can be seen
+    # prefixes are still used in the saveFrames bit not seen in general use
+    return self._hidePrefix
+
+  @hidePrefix.setter
+  def hidePrefix(self, newPrefix):
+    # set the current hidePrefix state
+    # True - Nef prefixes 'nef_' are hidden
+    # False - Nef prefixes 'nef_' can be seen
+    # prefixes are still used in the saveFrames bit not seen in general use
+    if isinstance(newPrefix, bool):
+      self._hidePrefix = newPrefix
+
+
+class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
+  """
+  An orderedDict saveFrame object for extracting information from the NefImporter
+  """
+  def __init__(self, inFrame, errorLogging=el.NEF_STANDARD, hidePrefix=True):
+    """
+    Initialise a NefDict orderedDict object from a given saveFrame
+    :param inFrame:
+    :param errorLogging:
+    :param hidePrefix:
+    """
+    StarIo.NmrSaveFrame.__init__(self, name=inFrame.name)
+    el.ErrorLog.__init__(self, loggingMode=errorLogging)
+
+    self._nefFrame = inFrame
+    self._hidePrefix = hidePrefix
+
+  def _removePrefix(self, name):
+    """
+    Remove the prefix 'nef_' from the saveFrame category name
+    :param nef_name:
+    :return <name>:
+    """
+    if self._hidePrefix:
+      for db in NEF_CATEGORIES_REMOVEPREFIX.keys():
+        if name.startswith(db):
+          name = name.replace(db, NEF_CATEGORIES_REMOVEPREFIX[db], 1)
+          break
+    return name
+
+  def _insertPrefix(self, name):
+    """
+    Insert the prefix 'nef_' into the saveFrame category name
+    :param name:
+    :return nef_<name>:
+    """
+    if self._hidePrefix:
+      for db in NEF_CATEGORIES_INSERTPREFIX.keys():
+        if name.startswith(db):
+          name = name.replace(db, NEF_CATEGORIES_INSERTPREFIX[db], 1)
+          break
+    return name
+
+  @el.ErrorLog(errorCode=el.NEFERROR_BADKEYS)
+  def _namedToOrderedDict(self, frame):
+    """
+    Convert a named saveFrame to a standard orderedDict
+    :param frame:
+    :return orderedDict:
+    """
+    newItem = OrderedDict()
+    for ky in frame.keys():
+      newItem[ky] = frame[ky]
+    return newItem
+
+  @el.ErrorLog(errorCode=el.NEFERROR_BADTABLENAMES)
+  def getTableNames(self):
+    """
+    Return list of attributes in the saveFrame
+    :return list or None:
+    """
+    return tuple([self._removePrefix(db) for db in self._nefFrame.keys()
+              if isinstance(self._nefFrame[db], StarIo.NmrLoop)])
+
+  @el.ErrorLog(errorCode=el.NEFERROR_GENERICGETTABLEERROR)
+  def getTable(self, name=None, asPandas=False):
+    """
+    Return the table 'name' from the saveFrame if it exists
+    if asPandas is True then return as a pandas dataFrame,
+    otherwise return a list of saveFrames
+    :param name:
+    :param asPandas:
+    :return saveFrames, dataFrames or None:
+    """
+    # return table 'name' if exists else None
+    thisFrame = None
+    if name:
+      if name in self._nefFrame:
+        thisFrame = self._nefFrame[name]
+      else:
+        # table not found
+        name = self._insertPrefix(name)
+        if name in self._nefFrame:
+          thisFrame = self._nefFrame[name]
+        else:
+          self._logError(errorCode=el.NEFERROR_TABLEDOESNOTEXIST)
+          return None
+    else:
+      tables = self.getTableNames()
+      if tables:
+        thisFrame = self._nefFrame[tables[0]]
+
+    if asPandas:
+      return self._convertToPandas(thisFrame)
+    else:
+      return [self._namedToOrderedDict(sf) for sf in thisFrame.data]
+
+  @el.ErrorLog(errorCode=el.NEFERROR_BADMULTICOLUMNVALUES)
+  def multiColumnValues(self, column=None):
+    """
+    Return tuple of orderedDict of values for columns.
+    Will work whether columns are in a loop or single values
+    If columns match a single loop or nothing, return the loop data.
+    Otherwise return a tuple with a single OrderedDict.
+    If no column matches return None
+    If columns match more than one loop throw an error
+    :param column:
+    :return orderedDicts:
+    """
+    return self._nefFrame.multiColumnValues(column=column)
+
+  @el.ErrorLog(errorCode=el.NEFERROR_TABLEDOESNOTEXIST)
+  def hasTable(self, name):
+    """
+    Return True if table 'name' exists in the saveFrame
+    :param name:
+    :return True or False:
+    """
+    # return True is the table exists in the saveFrame
+    name = self._insertPrefix(name)
+    return name in self._nefFrame
+
+  def setTable(self, name):
+    # add the table 'name' to the saveFrame, or replace the existing
+    # does this need to be here or in the main class?
+    print ('Not implemented yet.')
+
+  def _convertToPandas(self, sf):
+    """
+    Convert the saveFrame to a Pandas dataFrame
+    :return dataFrame or None on error:
+    """
+    try:
+      df = pd.DataFrame(data=sf.data, columns=sf.columns)
+      df.replace({'.': np.NAN, 'true': True, 'false': False}, inplace=True)
+      return df
+    except:
+      return None
+
+  @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTENAMES)
+  def getAttributeNames(self):
+    """
+    Return list of attributes in the saveFrame
+    :return list or None:
+    """
+    return tuple([self._removePrefix(db) for db in self._nefFrame.keys()
+              if not isinstance(self._nefFrame[db], StarIo.NmrLoop)])
+
+  @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTE)
+  def getAttribute(self, name):
+    """
+    Return attribute 'name' if in the saveFrame
+    :param name:
+    :return attribute:
+    """
+    name = self._insertPrefix(name)
+    return self._nefFrame[name]
+
+  @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTE)
+  def hasAttribute(self, name):
+    """
+    Return True if attribute 'name' is in the saveFrame
+    :param name:
+    :return True or False:
+    """
+    name = self._insertPrefix(name)
+    return name in self._nefFrame
 
   @property
   def hidePrefix(self):
@@ -1184,3 +1154,6 @@ if __name__ == '__main__':
     print (test.getAttributeNames())
     print (test.loggingMode)
     print (test.hidePrefix)
+
+  print ('Valid Nef:', test.isValid)
+  print ('Valid Nef:', test.validErrorLog)

@@ -29,9 +29,7 @@ __date__ = "$Date: 2017-03-23 16:50:22 +0000 (Thu, March 23, 2017) $"
 #=========================================================================================
 
 import re
-
-from .NefImporter import NefImporter as Nef
-from .NefImporter import __nef_version__
+from . import NefImporter as Nef
 
 
 class Validator(object):
@@ -46,7 +44,7 @@ class Validator(object):
             nef = self.nef
         self.validation_errors = dict()
 
-        self.validation_errors.update(self._validate_datablock(nef))
+        # self.validation_errors.update(self._validate_datablock(nef))
         self.validation_errors.update(self._validate_saveframe_fields(nef))
         self.validation_errors.update(self._validate_required_saveframes(nef))
         self.validation_errors.update(self._validate_metadata(nef))
@@ -63,6 +61,7 @@ class Validator(object):
 
 
     def _validate_datablock(self, nef=None):
+        # not required as the validator is subclassed from NefImporter
         if nef is None:
             nef = self.nef
 
@@ -125,8 +124,8 @@ class Validator(object):
                 if md['format_name'] != 'Nmr_Exchange_Format':
                     e.append("format_name must be 'Nmr_Exchange_Format'.")
             if 'format_version' in md:
-                major_version = md['format_version'].split('.')[0]
-                if major_version != __nef_version__.split( '.' )[0 ]:
+                major_version = str(md['format_version']).split('.')[0]
+                if major_version != Nef.__nef_version__.split( '.' )[0 ]:
                     e.append('This reader does not support format version {}.'.format(major_version))
             if 'creation_date' in md:
                 pass # TODO: How to validate the creation date?
@@ -140,12 +139,12 @@ class Validator(object):
                     e += self.__dict_nonallowed_keys(entry, Nef.MD_RE_REQUIRED_FIELDS, label = label)
 
             if 'nef_program_script' in md:
-                for i, entry in enumerate(md['nef_program_script']):
+                for i, entry in enumerate(md['nef_program_script'].data):
                     label = '{}:nef_program_script entry {}'.format(DICT_KEY, i+1)
                     e += self.__dict_missing_keys(entry, Nef.MD_PS_REQUIRED_FIELDS, label = label)
                     # Note: Because program specific parameters are allowed, there are not restrictions
                     # on what fields can be in this loop
-                e += self.__loop_entries_inconsistent_keys(md['nef_program_script'],
+                e += self.__loop_entries_inconsistent_keys(md['nef_program_script'].data,
                                                            label='{}:nef_program_script'.format(DICT_KEY))
 
             if 'nef_run_history' in md:
@@ -183,16 +182,16 @@ class Validator(object):
             e += self.__sf_category_name_mismatch(ms, DICT_KEY)
 
             if 'nef_sequence' in ms:
-                if len(ms['nef_sequence']) == 0:
+                if len(ms['nef_sequence'].data) == 0:
                     e.append('Empty nef_sequence.')
                 else:
-                    for i, entry in enumerate(ms['nef_sequence']):
+                    for i, entry in enumerate(ms['nef_sequence'].data):
                         label = '{}:nef_sequence entry {}'.format(DICT_KEY, i+1)
                         e += self.__dict_missing_keys(entry, Nef.MS_NS_REQUIRED_FIELDS, label = label)
                         e += self.__dict_nonallowed_keys(entry, Nef.MS_NS_REQUIRED_FIELDS, label = label)
 
             if 'nef_covalent_links' in ms:
-                for i, entry in enumerate(ms['nef_covalent_links']):
+                for i, entry in enumerate(ms['nef_covalent_links'].data):
                     label = '{}:nef_covalent_links entry {}'.format(DICT_KEY, i+1)
                     e += self.__dict_missing_keys(entry, Nef.MS_CL_REQUIRED_FIELDS, label = label)
                     e += self.__dict_nonallowed_keys(entry, Nef.MS_CL_REQUIRED_FIELDS, label = label)
@@ -221,14 +220,14 @@ class Validator(object):
                                                                  label = saveframe_name)
 
                     if 'nef_chemical_shift' in saveframe:
-                        for i, entry in enumerate(saveframe['nef_chemical_shift']):
+                        for i, entry in enumerate(saveframe['nef_chemical_shift'].data):
                             label = '{}:nef_chemical_shift entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, Nef.CSL_CS_REQUIRED_FIELDS, label = label)
                             e += self.__dict_nonallowed_keys(entry,
                                                              (Nef.CSL_CS_REQUIRED_FIELDS +
                                                               Nef.CSL_CS_OPTIONAL_FIELDS),
                                                              label = label)
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_chemical_shift'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_chemical_shift'].data,
                                                                    label='{}:nef_chemical_shift'.format(saveframe_name))
         if not found_csl:
             e.append('No nef_chemical_shift_list saveframes found.')
@@ -256,14 +255,14 @@ class Validator(object):
                                                                  label = saveframe_name)
 
                     if 'nef_distance_restraint' in saveframe:
-                        for i, entry in enumerate(saveframe['nef_distance_restraint']):
+                        for i, entry in enumerate(saveframe['nef_distance_restraint'].data):
                             label = '{}:nef_distance_restraint entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, Nef.DRL_DR_REQUIRED_FIELDS, label = label)
                             e += self.__dict_nonallowed_keys(entry,
                                                              (Nef.DRL_DR_REQUIRED_FIELDS +
                                                               Nef.DRL_DR_OPTIONAL_FIELDS),
                                                              label = label)
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_distance_restraint'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_distance_restraint'].data,
                                                                    label='{}:nef_distance_restraint'.format(saveframe_name))
         return errors
 
@@ -290,14 +289,14 @@ class Validator(object):
                                                                  label = saveframe_name)
 
                     if 'nef_dihedral_restraint' in saveframe:
-                        for i, entry in enumerate(saveframe['nef_dihedral_restraint']):
+                        for i, entry in enumerate(saveframe['nef_dihedral_restraint'].data):
                             label = '{}:nef_dihedral_restraint entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, Nef.DIHRL_DIHR_REQUIRED_FIELDS, label = label)
                             e += self.__dict_nonallowed_keys(entry,
                                                              (Nef.DIHRL_DIHR_REQUIRED_FIELDS +
                                                               Nef.DIHRL_DIHR_OPTIONAL_FIELDS),
                                                              label = label)
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_dihedral_restraint'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_dihedral_restraint'].data,
                                                                    label='{}:nef_dihedral_restraint'.format(saveframe_name))
         return errors
 
@@ -323,14 +322,14 @@ class Validator(object):
                                                                  label = saveframe_name)
 
                     if 'nef_rdc_restraint' in saveframe:
-                        for i, entry in enumerate(saveframe['nef_rdc_restraint']):
+                        for i, entry in enumerate(saveframe['nef_rdc_restraint'].data):
                             label = '{}:nef_rdc_restraint_list entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, Nef.RRL_RR_REQUIRED_FIELDS, label = label)
                             e += self.__dict_nonallowed_keys(entry,
                                                              (Nef.RRL_RR_REQUIRED_FIELDS +
                                                               Nef.RRL_RR_OPTIONAL_FIELDS),
                                                              label = label)
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_rdc_restraint'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_rdc_restraint'].data,
                                                                    label='{}:nef_rdc_restraint'.format(saveframe_name))
         return errors
 
@@ -360,38 +359,38 @@ class Validator(object):
                             e.append('{}: missing chemical_shift_list {}.'
                                      .format(saveframe['sf_framecode'],csl))
                     if 'nef_spectrum_dimension' in saveframe:
-                        for i, entry in enumerate(saveframe['nef_spectrum_dimension']):
+                        for i, entry in enumerate(saveframe['nef_spectrum_dimension'].data):
                             label = '{}:nef_rdc_restraint_list entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, Nef.PL_SD_REQUIRED_FIELDS, label = label)
                             e += self.__dict_nonallowed_keys(entry,
                                                              (Nef.PL_SD_REQUIRED_FIELDS +
                                                               Nef.PL_SD_OPTIONAL_FIELDS),
                                                              label = label)
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_spectrum_dimension'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_spectrum_dimension'].data,
                                                                    label='{}:nef_spectrum_dimension'.format(saveframe_name))
                     if 'nef_spectrum_dimension_transfer' in saveframe:
-                        for i, entry in enumerate(saveframe['nef_spectrum_dimension_transfer']):
+                        for i, entry in enumerate(saveframe['nef_spectrum_dimension_transfer'].data):
                             label = '{}:nef_rdc_restraint_list entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, Nef.PL_SDT_REQUIRED_FIELDS, label = label)
                             e += self.__dict_nonallowed_keys(entry,
                                                              (Nef.PL_SDT_REQUIRED_FIELDS +
                                                               Nef.PL_SDT_OPTIONAL_FIELDS),
                                                              label = label)
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_spectrum_dimension_transfer'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_spectrum_dimension_transfer'].data,
                                                                    label='{}:nef_spectrum_dimension_transfer'.format(saveframe_name))
                     if 'nef_peak' in saveframe:
-                        peak_dimensions = len(saveframe['nef_spectrum_dimension'])
+                        peak_dimensions = len(saveframe['nef_spectrum_dimension'].data)
                         req_fields = []
                         opt_fields = []
                         for i in range(peak_dimensions):
                             for f in Nef.PL_P_REQUIRED_FIELDS_PATTERN:
                                 req_fields.append(f.format(i+1))
 
-                        if len(saveframe['nef_peak']) > 0:
+                        if len(saveframe['nef_peak'].data) > 0:
                             for i in Nef.PL_P_REQUIRED_ALTERNATE_FIELDS:
                                 found_alternate = False
                                 for j in i:
-                                    if j in saveframe['nef_peak'][0].keys():
+                                    if j in saveframe['nef_peak'].data[0].keys():
                                         found_alternate = True
                                         req_fields.append(j)
                                         # for k in Nef.PL_P_OPTIONAL_ALTERNATE_FIELDS:
@@ -406,7 +405,7 @@ class Validator(object):
                                     for orv in optional_re_val:
                                         opt_fields.append(orv.format(match.groups([0])[0]))
                         opt_fields = list(set(opt_fields))
-                        for i, entry in enumerate(saveframe['nef_peak']):
+                        for i, entry in enumerate(saveframe['nef_peak'].data):
                             label = '{}:nef_peak entry {}'.format(saveframe_name, i+1)
                             e += self.__dict_missing_keys(entry, (Nef.PL_P_REQUIRED_FIELDS +
                                                                   req_fields),
@@ -417,7 +416,7 @@ class Validator(object):
                                                               opt_fields),
                                                              label = label)
 
-                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_peak'],
+                        e += self.__loop_entries_inconsistent_keys(saveframe['nef_peak'].data,
                                                                    label='{}:nef_peak'.format(saveframe_name))
         return errors
 
@@ -440,7 +439,7 @@ class Validator(object):
                                                     Nef.PRLS_REQUIRED_LOOPS),
                                              label = DICT_KEY)
             if 'nef_peak_restraint_link' in prls:
-                for i, entry in enumerate(prls['nef_peak_restraint_link']):
+                for i, entry in enumerate(prls['nef_peak_restraint_link'].data):
                     label = '{}:nef_peak_restraint_link entry {}'.format(DICT_KEY, i+1)
                     e += self.__dict_missing_keys(entry, Nef.PRLS_PRL_REQUIRED_FIELDS, label = label)
                     e += self.__dict_nonallowed_keys(entry, Nef.PRLS_PRL_REQUIRED_FIELDS, label = label)
