@@ -1272,10 +1272,6 @@ class NefImporter(_errorLog):
 
 
 if __name__ == '__main__':
-  from ccpn.ui.gui.widgets.Application import TestApplication
-
-  app = TestApplication()
-
   test = NefImporter(errorLogging=NEF_STANDARD)
   test.loadFile('/Users/ejb66/PycharmProjects/Sec5Part3.nef')
 
