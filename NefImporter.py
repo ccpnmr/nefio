@@ -444,49 +444,49 @@ PRLS_PRL_REQUIRED_FIELDS = ['nmr_spectrum_id',
                             'restraint_list_id',
                             'restraint_id']
 
-NEF_CATEGORIES_REMOVEPREFIX = {'nef_distance_restraint': 'distance_restraint'
-                              , 'nef_molecular_system': 'molecular_system'
-                              , 'nef_covalent_links': 'covalent_links'
-                              , 'nef_peak_restraint_links': 'peak_restraint_links'
-                              , 'nef_run_history': 'run_history'
-                              , 'nef_nmr_meta_data': 'nmr_meta_data'
-                              , 'nef_rdc_restraint_list': 'rdc_restraint_list'
-                              , 'nef_peak_restraint_link': 'peak_restraint_link'
-                              , 'nef_nmr_spectrum': 'nmr_spectrum'
-                              , 'nef_spectrum_dimension': 'spectrum_dimension'
-                              , 'nef_chemical_shift_list': 'chemical_shift_list'
-                              , 'nef_sequence': 'sequence'
-                              , 'nef_program_script': 'program_script'
-                              , 'nef_related_entries': 'related_entries'
-                              , 'nef_distance_restraint_list': 'distance_restraint_list'
-                              , 'nef_rdc_restraint': 'rdc_restraint'
-                              , 'nef_chemical_shift': 'chemical_shift'
-                              , 'nef_spectrum_dimension_transfer': 'spectrum_dimension_transfer'
-                              , 'nef_dihedral_restraint_list': 'dihedral_restraint_list'
-                              , 'nef_peak': 'peak'
-                              , 'nef_dihedral_restraint': 'dihedral_restraint'}
+NEF_CATEGORIES_REMOVEPREFIX = {'nef_distance_restraint': 'distance_restraint',
+                               'nef_molecular_system': 'molecular_system',
+                               'nef_covalent_links': 'covalent_links',
+                               'nef_peak_restraint_links': 'peak_restraint_links',
+                               'nef_run_history': 'run_history',
+                               'nef_nmr_meta_data': 'nmr_meta_data',
+                               'nef_rdc_restraint_list': 'rdc_restraint_list',
+                               'nef_peak_restraint_link': 'peak_restraint_link',
+                               'nef_nmr_spectrum': 'nmr_spectrum',
+                               'nef_spectrum_dimension': 'spectrum_dimension',
+                               'nef_chemical_shift_list': 'chemical_shift_list',
+                               'nef_sequence': 'sequence',
+                               'nef_program_script': 'program_script',
+                               'nef_related_entries': 'related_entries',
+                               'nef_distance_restraint_list': 'distance_restraint_list',
+                               'nef_rdc_restraint': 'rdc_restraint',
+                               'nef_chemical_shift': 'chemical_shift',
+                               'nef_spectrum_dimension_transfer': 'spectrum_dimension_transfer',
+                               'nef_dihedral_restraint_list': 'dihedral_restraint_list',
+                               'nef_peak': 'peak',
+                               'nef_dihedral_restraint': 'dihedral_restraint'}
 
-NEF_CATEGORIES_INSERTPREFIX = {'distance_restraint': 'nef_distance_restraint'
-                              , 'molecular_system': 'nef_molecular_system'
-                              , 'covalent_links': 'nef_covalent_links'
-                              , 'peak_restraint_links': 'nef_peak_restraint_links'
-                              , 'run_history': 'nef_run_history'
-                              , 'nmr_meta_data': 'nef_nmr_meta_data'
-                              , 'rdc_restraint_list': 'nef_rdc_restraint_list'
-                              , 'peak_restraint_link': 'nef_peak_restraint_link'
-                              , 'nmr_spectrum': 'nef_nmr_spectrum'
-                              , 'spectrum_dimension': 'nef_spectrum_dimension'
-                              , 'chemical_shift_list': 'nef_chemical_shift_list'
-                              , 'sequence': 'nef_sequence'
-                              , 'program_script': 'nef_program_script'
-                              , 'related_entries': 'nef_related_entries'
-                              , 'distance_restraint_list': 'nef_distance_restraint_list'
-                              , 'rdc_restraint': 'nef_rdc_restraint'
-                              , 'chemical_shift': 'nef_chemical_shift'
-                              , 'spectrum_dimension_transfer': 'nef_spectrum_dimension_transfer'
-                              , 'dihedral_restraint_list': 'nef_dihedral_restraint_list'
-                              , 'peak': 'nef_peak'
-                              , 'dihedral_restraint': 'nef_dihedral_restraint'}
+NEF_CATEGORIES_INSERTPREFIX = {'distance_restraint': 'nef_distance_restraint',
+                               'molecular_system': 'nef_molecular_system',
+                               'covalent_links': 'nef_covalent_links',
+                               'peak_restraint_links': 'nef_peak_restraint_links',
+                               'run_history': 'nef_run_history',
+                               'nmr_meta_data': 'nef_nmr_meta_data',
+                               'rdc_restraint_list': 'nef_rdc_restraint_list',
+                               'peak_restraint_link': 'nef_peak_restraint_link',
+                               'nmr_spectrum': 'nef_nmr_spectrum',
+                               'spectrum_dimension': 'nef_spectrum_dimension',
+                               'chemical_shift_list': 'nef_chemical_shift_list',
+                               'sequence': 'nef_sequence',
+                               'program_script': 'nef_program_script',
+                               'related_entries': 'nef_related_entries',
+                               'distance_restraint_list': 'nef_distance_restraint_list',
+                               'rdc_restraint': 'nef_rdc_restraint',
+                               'chemical_shift': 'nef_chemical_shift',
+                               'spectrum_dimension_transfer': 'nef_spectrum_dimension_transfer',
+                               'dihedral_restraint_list': 'nef_dihedral_restraint_list',
+                               'peak': 'nef_peak',
+                               'dihedral_restraint': 'nef_dihedral_restraint'}
 
 NEF_RETURNALL = 'all'
 NEF_RETURNNEF = 'nef_'
@@ -498,12 +498,12 @@ class NefImporter(el.ErrorLog):
   """Top level data block for accessing object tree"""
   # put functions in here to read the contents of the dict.
   # superclassed from DataBlock which is of type StarContainer
-  def __init__(self, name=None
-               , programName='Unknown'
-               , programVersion='Unknown'
-               , initialise=True
-               , errorLogging=el.NEF_STANDARD
-               , hidePrefix=True):
+  def __init__(self, name=None,
+               programName='Unknown',
+               programVersion='Unknown',
+               initialise=True,
+               errorLogging=el.NEF_STANDARD,
+               hidePrefix=True):
 
     el.ErrorLog.__init__(self, loggingMode=errorLogging)
 
