@@ -76,23 +76,23 @@ class ErrorLog():
     mode = logginMode     return the current mode.
   """
   _availableModes = (NEF_STANDARD, NEF_SILENT, NEF_STRICT)
-  NEFERRORS = {NEFERROR_BADADDSAVEFRAME: 'bad add saveFrame'
-              , NEFERROR_BADCATEGORIES: 'bad categories'
-              , NEFERROR_BADFUNCTION: ''
-              , NEFERROR_BADLISTTYPE: 'bad listType'
-              , NEFERROR_BADTABLENAMES: 'bad table names'
-              , NEFERROR_LISTTYPEERROR: 'list type error'
-              , NEFERROR_BADMULTICOLUMNVALUES: 'bad multiColumnValues'
-              , NEFERROR_BADFROMSTRING: 'bad convert from string'
-              , NEFERROR_BADTOSTRING: 'bad convert to string'
-              , NEFERROR_ERRORSAVINGFILE: 'error saving file'
-              , NEFERROR_ERRORLOADINGFILE: 'error loading file'
-              , NEFERROR_SAVEFRAMEDOESNOTEXIST: 'saveFrame does not exist'
-              , NEFERROR_TABLEDOESNOTEXIST: 'table does not exist'
-              , NEFERROR_GENERICGETTABLEERROR: 'table error'
-              , NEFERROR_READATTRIBUTENAMES: 'error reading attribute names'
-              , NEFERROR_READATTRIBUTE: 'error reading attribute'
-              , NEFERROR_BADKEYS: 'error reading keys'}
+  NEFERRORS = {NEFERROR_BADADDSAVEFRAME: 'bad add saveFrame',
+              NEFERROR_BADCATEGORIES: 'bad categories',
+              NEFERROR_BADFUNCTION: '',
+              NEFERROR_BADLISTTYPE: 'bad listType',
+              NEFERROR_BADTABLENAMES: 'bad table names',
+              NEFERROR_LISTTYPEERROR: 'list type error',
+              NEFERROR_BADMULTICOLUMNVALUES: 'bad multiColumnValues',
+              NEFERROR_BADFROMSTRING: 'bad convert from string',
+              NEFERROR_BADTOSTRING: 'bad convert to string',
+              NEFERROR_ERRORSAVINGFILE: 'error saving file',
+              NEFERROR_ERRORLOADINGFILE: 'error loading file',
+              NEFERROR_SAVEFRAMEDOESNOTEXIST: 'saveFrame does not exist',
+              NEFERROR_TABLEDOESNOTEXIST: 'table does not exist',
+              NEFERROR_GENERICGETTABLEERROR: 'table error',
+              NEFERROR_READATTRIBUTENAMES: 'error reading attribute names',
+              NEFERROR_READATTRIBUTE: 'error reading attribute',
+              NEFERROR_BADKEYS: 'error reading keys'}
 
   def __init__(self, logOutput=sys.stderr.write, loggingMode=NEF_STANDARD, errorCode=NEFVALID):
     """
