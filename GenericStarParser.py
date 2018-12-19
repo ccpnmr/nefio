@@ -185,28 +185,28 @@ _defaultSeparator = ' ' * 2
 
 # Options corresponding to the supported parser modes: 'standard', 'lenient', 'strict', and 'IUCr'
 _parserModeOptions = {
-    'lenient': {
-        'enforceSaveFrameStop': False,
-        'enforceLoopStop': False,
-        'padIncompleteLoops': True,
+    'lenient' : {
+        'enforceSaveFrameStop'     : False,
+        'enforceLoopStop'          : False,
+        'padIncompleteLoops'       : True,
         'allowSquareBracketStrings': True
         },
-    'strict': {
-        'enforceSaveFrameStop': True,
-        'enforceLoopStop': True,
-        'padIncompleteLoops': False,
+    'strict'  : {
+        'enforceSaveFrameStop'     : True,
+        'enforceLoopStop'          : True,
+        'padIncompleteLoops'       : False,
         'allowSquareBracketStrings': False
         },
     'standard': {
-        'enforceSaveFrameStop': True,
-        'enforceLoopStop': False,
-        'padIncompleteLoops': False,
+        'enforceSaveFrameStop'     : True,
+        'enforceLoopStop'          : False,
+        'padIncompleteLoops'       : False,
         'allowSquareBracketStrings': True
         },
-    'IUCr': {
-        'enforceSaveFrameStop': True,
-        'enforceLoopStop': False,
-        'padIncompleteLoops': False,
+    'IUCr'    : {
+        'enforceSaveFrameStop'     : True,
+        'enforceLoopStop'          : False,
+        'padIncompleteLoops'       : False,
         'allowSquareBracketStrings': False},
     }
 
