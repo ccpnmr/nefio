@@ -238,7 +238,8 @@ def parse(text, mode='standard'):
 def parseFile(fileName, mode='standard'):
     """load generic STAR file and parse the contents"""
 
-    text = open(fileName).read()
+    with open(fileName) as fp:
+        text = fp.read()
     return parse(text, mode=mode)
 
 
