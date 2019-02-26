@@ -22,20 +22,21 @@ Command Line Usage:
                             different applications
                             May be used with -f and -b
 
-    -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
-                            the extension, where n is the next available number. 
-      
     -f inFile1 inFile2, --file inFile1 inFile2
                             Compare two Nef files and print the results to the
                             screen
-
-    -s, --screen            Output batch processing to screen, default is to .txt files
-                            may be used with -b
 
     -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir
                             compare Nef files common to directories
                             inDir1 and inDir2. Write output *.txt for each
                             file into the outDir directory.
+
+    -s, --screen            Output batch processing to screen, default is to .txt files
+                            may be used with -b
+
+    -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
+                            the extension, where n is the next available number.
+
 
 Details of the contents of Nef files can be found in GenericStarParser
 The general structure of a Nef file is:
@@ -203,15 +204,15 @@ def defineArguments():
     parser = argparse.ArgumentParser(description='Compare the contents of Nef files', prog='compareNef', usage='%(prog)s [options]',
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-H', '--Help', dest='Help', action='store_true', default=False, help='Show detailed help')
-    parser.add_argument('-s', '--screen', dest='Screen', action='store_true', default=False, help='Output batch processing to screen')
     parser.add_argument('-i', '--ignoreblockname', dest='ignoreBlockName', action='store_true', default=False,
-                        help='Ignore the blockname when comparing two Nef files')
-    parser.add_argument('-k', '--keep', dest='keepExisting', action='store_true', default=False,
                         help='Ignore the blockname when comparing two Nef files')
     parser.add_argument('-f', '--file', dest='inFiles', nargs=2, metavar=('inFile1', 'inFile2'), default=None,
                         help='Compare two Nef files and print the results to the screen')
     parser.add_argument('-b', '--block', dest='blockDirs', nargs=3, metavar=('inDir1', 'inDir2', 'outDir'), default=None,
                         help='Batch mode: compare the contents of two directories')
+    parser.add_argument('-s', '--screen', dest='Screen', action='store_true', default=False, help='Output batch processing to screen')
+    parser.add_argument('-k', '--keep', dest='keepExisting', action='store_true', default=False,
+                        help='Keep existing .txt files. New files are appended with "(n)"')
 
     return parser
 
@@ -798,28 +799,46 @@ def batchCompareNefFiles(inDir1, inDir2, outDir):
     for fl in inFileList:
         if fl in outFileList:
 
-            outFileName = join(outDir, fl[:-4] + '.txt')
-            print('Batch processing %s > %s' % (fl, outFileName))
+            # outFileName = join(outDir, fl[:-4] + '.txt')
+            # print('Batch processing %s > %s' % (fl, outFileName))
 
+            # keep the old output stream
             stdOriginal = sys.stdout
 
             nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl))
 
             if commandLineArguments.Screen is True:
+
+                # strip the .nef from the end
+                outFileName = join(outDir, fl[:-4] + '.txt')
+                print('Batch processing %s > %s' % (fl, outFileName))
+
                 printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
 
             else:
-                if commandLineArguments.keepExisting is True:
-                    openType = safeOpen
-                else:
-                    openType = open
+                # strip the .nef from the end
+                outFileName = join(outDir, fl[:-4] + '.txt')
 
-                with openType(outFileName, 'w') as outLog:
-                    sys.stdout = outLog
-                    print(join(inDir1, fl))
-                    print(join(inDir2, fl))
-                    printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
-                    sys.stdout = stdOriginal
+                if commandLineArguments.keepExisting is True:
+
+                    with safeOpen(outFileName, 'w') as (outLog, safeFileName):
+                        print('Batch processing %s > %s' % (fl, os.path.basename(safeFileName)))
+
+                        sys.stdout = outLog
+                        print(join(inDir1, fl))
+                        print(join(inDir2, fl))
+                        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+                        sys.stdout = stdOriginal
+
+                else:
+                    print('Batch processing %s > %s' % (fl, outFileName))
+
+                    with open(outFileName, 'w') as outLog:
+                        sys.stdout = outLog
+                        print(join(inDir1, fl))
+                        print(join(inDir2, fl))
+                        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+                        sys.stdout = stdOriginal
 
 
 #=========================================================================================
@@ -907,20 +926,21 @@ if __name__ == '__main__':
                               different applications
                               May be used with -f and -b
                               
-      -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
-                              the extension, where n is the next available number. 
-      
       -f inFile1 inFile2, --file inFile1 inFile2
                               Compare two Nef files and print the results to the
                               screen
-                              
-      -s, --screen            Output batch processing to screen, default is to .txt files
-                              may be used with -b
                               
       -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir
                               compare Nef files common to directories
                               inDir1 and inDir2. Write output *.txt for each
                               file into the outDir directory.
+
+      -s, --screen            Output batch processing to screen, default is to .txt files
+                              may be used with -b
+                              
+      -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
+                              the extension, where n is the next available number. 
+      
                           
     Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
     Comparisons are made for all data structures that have the same name.
