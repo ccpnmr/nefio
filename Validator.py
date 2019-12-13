@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:55 +0100 (Fri, July 07, 2017) $"
+__dateModified__ = "$dateModified: 2019-12-13 19:01:25 +0000 (Fri, December 13, 2019) $"
 __version__ = "$Revision: 3.0.0 $"
 #=========================================================================================
 # Created
@@ -33,31 +33,128 @@ import re
 from . import NefImporter as Nef
 
 
+FRAME_SEARCH = r'nef_saveframe_(\w+)'
+SF_CATEGORY = 'sf_category'
+SF_FRAMECODE = 'sf_framecode'
+NAME = 'name'
+NEF_ITEM = 'nef_item'
+IS_MANDATORY = 'is_mandatory'
+IS_KEY = 'is_key'
+LOOP_CATEGORY = 'loop_category'
+CATEGORY = 'category'
+NEF_LOOP = 'nef_loop'
+
+
 class Validator(object):
 
-    def __init__(self, nef=None):
+    def __init__(self, nef=None, validateNefDict=None):
         self.nef = nef
-        self.validation_errors = []
+        self.validateNefDict = validateNefDict
+        self._validation_errors = None
 
-    def isValid(self, nef=None):
+    def isValid(self, nef=None, validNef=None):
         if nef is None:
             nef = self.nef
-        self.validation_errors = dict()
+        if validNef is None:
+            validNef = self.validateNefDict
 
-        # self.validation_errors.update(self._validate_datablock(nef))
-        self.validation_errors.update(self._validate_saveframe_fields(nef))
-        self.validation_errors.update(self._validate_required_saveframes(nef))
-        self.validation_errors.update(self._validate_metadata(nef))
-        self.validation_errors.update(self._validate_molecular_system(nef))
-        self.validation_errors.update(self._validate_chemical_shift_lists(nef))
-        self.validation_errors.update(self._validate_distance_restraint_lists(nef))
-        self.validation_errors.update(self._validate_dihedral_restraint_lists(nef))
-        self.validation_errors.update(self._validate_rdc_restraint_lists(nef))
-        self.validation_errors.update(self._validate_peak_lists(nef))
-        self.validation_errors.update(self._validate_linkage_table(nef))
+        self._newValid(nef, validNef)
 
-        v = list(self.validation_errors.values())
+        # self.validation_errors = dict()
+        #
+        # # self.validation_errors.update(self._validate_datablock(nef))
+        # self.validation_errors.update(self._validate_saveframe_fields(nef))
+        # self.validation_errors.update(self._validate_required_saveframes(nef))
+        # self.validation_errors.update(self._validate_metadata(nef))
+        # self.validation_errors.update(self._validate_molecular_system(nef))
+        # self.validation_errors.update(self._validate_chemical_shift_lists(nef))
+        # self.validation_errors.update(self._validate_distance_restraint_lists(nef))
+        # self.validation_errors.update(self._validate_dihedral_restraint_lists(nef))
+        # self.validation_errors.update(self._validate_rdc_restraint_lists(nef))
+        # self.validation_errors.update(self._validate_peak_lists(nef))
+        # self.validation_errors.update(self._validate_linkage_table(nef))
+
+        v = list(self._validation_errors.values())
         return not any(v)
+
+    @property
+    def validationErrors(self):
+        """Return the dict of validation errors
+        """
+        if not self._validation_errors:
+            self.isValid(self.nef, self.validateNefDict)
+        return self._validation_errors
+
+    def _newValid(self, nef=None, validNef=None):
+        """Validate a nef file (nef) against a nef dictionary (validNef)
+        """
+        if nef is None:
+            nef = self.nef
+        if validNef is None:
+            validNef = self.validateNefDict
+        if not nef:
+            raise RuntimeError('Error: nef not defined')
+        if not validNef:
+            raise RuntimeError('Error: validateNefDict not defined')
+
+        self._validation_errors = dict()
+        self._validation_errors['SAVE_FRAME'] = []
+
+        # go through all the saveframes in the Nef object
+        for sf_name, saveframe in nef.items():
+
+            if saveframe.name != saveframe[SF_FRAMECODE]:
+                e = self._validation_errors['SAVE_FRAME']
+                e += ["Saveframe.name for sf_framecode '{}' is not defined correctly.".format(saveframe[SF_FRAMECODE]), ]
+                break
+
+            # check against the validation dictionary
+            for vName, validFrame in validNef.items():
+
+                # get the actual name from the end the the name - may need to be more complex later
+                checkName = re.findall(FRAME_SEARCH, validFrame.name)
+
+                if checkName and SF_CATEGORY in saveframe and saveframe[SF_CATEGORY] == checkName[0]:
+
+                    ERROR_KEY = checkName[0]
+                    e = self._validation_errors[ERROR_KEY] = []
+
+                    # check items against loop_category = None, i.e., this saveframe
+                    mandatoryFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is True and nm[LOOP_CATEGORY] is None]
+                    optionalFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is False and nm[LOOP_CATEGORY] is None]
+                    loopNames = [nm['category'] for nm in validFrame[NEF_LOOP].data]
+
+                    # check for missing words/framecode is not correct/category is mismatched/bad fields (keys)
+                    e += self.__sf_framecode_name_mismatch(saveframe, sf_name)
+                    e += self.__dict_missing_keys(saveframe, mandatoryFields, label=sf_name)
+                    e += self.__sf_category_name_mismatch(saveframe, checkName[0])
+                    e += self.__dict_nonallowed_keys(saveframe, mandatoryFields + optionalFields + loopNames, label=sf_name)
+
+                    # iterate through loops
+                    loops = [kk for kk in saveframe.keys() if kk in loopNames]
+                    for loop in loops:
+
+                        # get the keys that belong to this loop
+                        mandatoryLoopFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is True and nm[LOOP_CATEGORY] == loop]
+                        optionalLoopFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is False and nm[LOOP_CATEGORY] == loop]
+
+                        if saveframe[loop] and saveframe[loop].data:
+                            # check for missing words/bad fields (keys)/malformed loops
+                            e += self.__dict_missing_keys(saveframe[loop].data[0], mandatoryLoopFields, label='{}:{}'.format(sf_name, loop))
+                            e += self.__dict_nonallowed_keys(saveframe[loop].data[0], mandatoryLoopFields + optionalLoopFields, label='{}:{}'.format(sf_name, loop))
+                            e += self.__loop_entries_inconsistent_keys(saveframe[loop].data, label='{}:{}'.format(sf_name, loop))
+                        else:
+
+                            # this error is a catch-all as loadFile should test the integrity of the nef file before validation
+                            e += ["Error reading loop '{}'.".format(loop), ]
+
+                    break
+            else:
+                e = self._validation_errors['SAVE_FRAME']
+                e += ["No sf_category '{}' found (possibly bad name defined).".format(saveframe[SF_CATEGORY]),]
+
+        return self._validation_errors
+
 
     def _validate_datablock(self, nef=None):
         # not required as the validator is subclassed from NefImporter

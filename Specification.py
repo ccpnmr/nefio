@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:33:02 +0100 (Fri, July 07, 2017) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2019-12-13 19:01:25 +0000 (Fri, December 13, 2019) $"
 __version__ = "$Revision: 3.0.0 $"
 #=========================================================================================
 # Created
@@ -290,8 +290,8 @@ class CifDicConverter:
         examples = [x['_item_examples.case'] for x in data]
         if len(examples) > 2:
             print("@~@~ More than two examples for %s" % name)
-            for dd in data:
-                print(dd['_item_examples.detail'], dd['_item_examples.case'])
+            # for dd in data:
+            #     print(dd['_item_examples.detail'], dd['_item_examples.case'])
         while len(examples) < 2:
             examples.append(None)
 

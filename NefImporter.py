@@ -204,6 +204,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 
+import os
 import sys
 import numpy as np
 import pandas as pd
@@ -240,6 +241,7 @@ if __name__ == '__main__' and __package__ is None:
 from . import StarIo
 from . import ErrorLog as el
 from . import Validator
+from . import Specification
 
 
 MAJOR_VERSION = '0'
@@ -513,6 +515,7 @@ class NefImporter(el.ErrorLog):
 
         self.name = name
         self._nefDict = StarIo.NmrDataBlock()
+        self._validateNefDict = StarIo.NmrDataBlock()
         self.programName = programName
         self.programVersion = programVersion
         self._hidePrefix = hidePrefix
@@ -523,22 +526,37 @@ class NefImporter(el.ErrorLog):
             # initialise a basic object
             self.initialise()
 
+    @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
+    def loadValidateDictionary(self, fileName=None, mode='standard'):
+        if not os.path.isfile(fileName):
+            raise ValueError('Error: file does not exist')
+
+        with open(infile) as fp:
+            data = fp.read()
+        converter = Specification.CifDicConverter(data)
+        converter.convertToNef()
+        self._validateNefDict = converter.result
+        if len(self._validateNefDict) > 1:
+            print('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+        self._validateNefDict = self._validateNefDict[0]
+
+        return True
+
     @property
     def isValid(self):
         """
         Check whether the Nef object contains the required information
         :return True or False:
         """
-        return self._valid.isValid(self._nefDict)
+        return self._valid.isValid(self._nefDict, self._validateNefDict)
 
     @property
     def validErrorLog(self):
         """
         Return the error log from checking validity
-        :return list:
+        :return dict:
         """
-        self._valid.isValid(self._nefDict)
-        return self._valid.validation_errors
+        return self._valid._validation_errors
 
     def _namedToNefDict(self, frame):
         # change a saveFrame into a normal OrderedDict
@@ -786,7 +804,6 @@ class NefImporter(el.ErrorLog):
     def toString(self):
         return self._nefDict.toString()
 
-    # should this be static
     @el.ErrorLog(errorCode=el.NEFERROR_BADFROMSTRING)
     def fromString(self, text, mode='standard'):
         # set the Nef from the contents of the string, opposite of toString
@@ -804,8 +821,7 @@ class NefImporter(el.ErrorLog):
         nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
         self._nefDict = list(nefDataExtent.values())
         if len(self._nefDict) > 1:
-            print(
-                    'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+            print('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
         self._nefDict = self._nefDict[0]
 
         return True
@@ -1076,6 +1092,34 @@ if __name__ == '__main__':
 
     print(test.getCategories())
     names = test.getSaveFrameNames()
+
+    validNef = NefImporter(errorLogging=el.NEF_STANDARD)
+
+    infile = 'mmcif_nef.dic'
+    filePath = os.path.join(os.getcwd(), infile)
+    # converter = Specification.CifDicConverter(open(filePath).read())
+    # converter.convertToNef()
+
+    test.loadValidateDictionary(filePath)
+    validCheck = test.isValid
+    print('~~~~~~~~~~~~~~~~~~~~~~\nValid Nef:', validCheck)
+    if not validCheck:
+        print('Error Nef:', test.validErrorLog)
+        print('Error Nef:')
+        for k, v in test.validErrorLog.items():
+            print('  >>>', k)
+            for err in v:
+                print('  >>>        ', err)
+
+    print('~~~~~~~~~~~~~~~~~~~~~~')
+
+    # validNef._nefDict = converter.result
+
+    # loop through the saveframes in the test dict and compare to the validNef
+
+    # result = Validator.Validator(None)
+    # result._newValid(test._nefDict, validNef._nefDict)
+
     print(names)
     names = test.getSaveFrameNames(returnType=NEF_RETURNALL)
     print(names)
@@ -1132,7 +1176,7 @@ if __name__ == '__main__':
         print('Error: %s' % str(es))
 
     print('Testing saveFile')
-    print('SAVE ', test.saveFile('/Users/ejb66/PycharmProjects/Git/NEF/data_1_1/CCPN_Commented_Example.nef'))
+    print('SAVE ', test.saveFile('/Users/ejb66/PycharmProjects/Git/NEF/data_1_1/CCPN_Commented_Example_Out.nef'))
     print(test.lastError)
 
     # test meta creation of category names
