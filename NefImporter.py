@@ -1072,7 +1072,7 @@ class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
 
 if __name__ == '__main__':
     test = NefImporter(errorLogging=el.NEF_STANDARD)
-    test.loadFile('/Users/ejb66/PycharmProjects/Sec5Part3.nef')
+    test.loadFile('/Users/ejb66/PycharmProjects/Git/NEF/data_1_1/CCPN_Commented_Example.nef')
 
     print(test.getCategories())
     names = test.getSaveFrameNames()
@@ -1132,7 +1132,7 @@ if __name__ == '__main__':
         print('Error: %s' % str(es))
 
     print('Testing saveFile')
-    print('SAVE ', test.saveFile('/Users/ejb66/PycharmProjects/Sec5Part3testing.nef'))
+    print('SAVE ', test.saveFile('/Users/ejb66/PycharmProjects/Git/NEF/data_1_1/CCPN_Commented_Example.nef'))
     print(test.lastError)
 
     # test meta creation of category names
