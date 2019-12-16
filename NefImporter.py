@@ -531,14 +531,11 @@ class NefImporter(el.ErrorLog):
         if not os.path.isfile(fileName):
             raise ValueError('Error: file does not exist')
 
-        with open(infile) as fp:
+        with open(fileName) as fp:
             data = fp.read()
         converter = Specification.CifDicConverter(data)
         converter.convertToNef()
         self._validateNefDict = converter.result
-        if len(self._validateNefDict) > 1:
-            print('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
-        self._validateNefDict = self._validateNefDict[0]
 
         return True
 
