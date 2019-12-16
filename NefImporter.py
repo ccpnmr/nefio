@@ -207,15 +207,11 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import os
 import sys
 import numpy as np
-import pandas as pd
 from collections import OrderedDict
-from functools import wraps
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # this is a fix to get the import to work when running as a standalone
 # when importing into your own code, it can be safely removed
-import importlib
-from pathlib import Path
 
 
 def import_parents(level=1):
@@ -234,6 +230,9 @@ def import_parents(level=1):
 
 
 if __name__ == '__main__' and __package__ is None:
+    import importlib
+    from pathlib import Path
+
     import_parents()
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1030,6 +1029,8 @@ class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
         :return dataFrame or None on error:
         """
         try:
+            import pandas as pd
+
             df = pd.DataFrame(data=sf.data, columns=sf.columns)
             df.replace({'.': np.NAN, 'true': True, 'false': False}, inplace=True)
             return df

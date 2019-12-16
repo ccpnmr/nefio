@@ -31,11 +31,11 @@ from . import GenericStarParser
 from . import StarIo
 
 
-# TODO, This is aq DRAFT only - not used and not currently functional.
+# TODO, This is a DRAFT only - not used and not currently functional.
 # May be upgraded later, for specification-aware NEF I/O
 
 
-def getCcpnSpecification(filePath) -> StarIo.NmrDataBlock:
+def getCcpnSpecification(filePath):
     """Get NEF specification summary with ccpn-specific additions"""
 
     converter = CifDicConverter(open(filePath).read(),
