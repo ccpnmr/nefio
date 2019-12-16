@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2019-12-13 19:01:25 +0000 (Fri, December 13, 2019) $"
+__dateModified__ = "$dateModified: 2019-12-16 10:10:44 +0000 (Mon, December 16, 2019) $"
 __version__ = "$Revision: 3.0.0 $"
 #=========================================================================================
 # Created
@@ -32,8 +32,9 @@ __date__ = "$Date: 2017-03-23 16:50:22 +0000 (Thu, March 23, 2017) $"
 import re
 from . import NefImporter as Nef
 
-
-FRAME_SEARCH = r'nef_saveframe_(\w+)'
+NMR_EXCHANGE_FORMAT = 'nmr_exchange_format'
+FRAME_PREFIX = 'nef_saveframe_'
+FRAME_SEARCH = r'{}(\w+)'.format(FRAME_PREFIX)
 SF_CATEGORY = 'sf_category'
 SF_FRAMECODE = 'sf_framecode'
 NAME = 'name'
@@ -42,7 +43,16 @@ IS_MANDATORY = 'is_mandatory'
 IS_KEY = 'is_key'
 LOOP_CATEGORY = 'loop_category'
 CATEGORY = 'category'
+SAVEFRAME = 'saveframe'
 NEF_LOOP = 'nef_loop'
+METADATA_KEY = 'METADATA'
+METADATA_DICTKEY = 'nef_nmr_meta_data'
+SPECIFICATION_KEY = 'nef_specification'
+FORMAT_NAME = 'format_name'
+FORMAT_VERSION = 'format_version'
+CREATION_DATE = 'creation_date'
+UUID = 'uuid'
+VERSION = 'version'
 
 
 class Validator(object):
@@ -58,21 +68,7 @@ class Validator(object):
         if validNef is None:
             validNef = self.validateNefDict
 
-        self._newValid(nef, validNef)
-
-        # self.validation_errors = dict()
-        #
-        # # self.validation_errors.update(self._validate_datablock(nef))
-        # self.validation_errors.update(self._validate_saveframe_fields(nef))
-        # self.validation_errors.update(self._validate_required_saveframes(nef))
-        # self.validation_errors.update(self._validate_metadata(nef))
-        # self.validation_errors.update(self._validate_molecular_system(nef))
-        # self.validation_errors.update(self._validate_chemical_shift_lists(nef))
-        # self.validation_errors.update(self._validate_distance_restraint_lists(nef))
-        # self.validation_errors.update(self._validate_dihedral_restraint_lists(nef))
-        # self.validation_errors.update(self._validate_rdc_restraint_lists(nef))
-        # self.validation_errors.update(self._validate_peak_lists(nef))
-        # self.validation_errors.update(self._validate_linkage_table(nef))
+        self._validateAll(nef, validNef)
 
         v = list(self._validation_errors.values())
         return not any(v)
@@ -85,7 +81,7 @@ class Validator(object):
             self.isValid(self.nef, self.validateNefDict)
         return self._validation_errors
 
-    def _newValid(self, nef=None, validNef=None):
+    def _validateAll(self, nef=None, validNef=None):
         """Validate a nef file (nef) against a nef dictionary (validNef)
         """
         if nef is None:
@@ -98,13 +94,17 @@ class Validator(object):
             raise RuntimeError('Error: validateNefDict not defined')
 
         self._validation_errors = dict()
-        self._validation_errors['SAVE_FRAME'] = []
+        self._validation_errors[SAVEFRAME] = []
+
+        # validate meta_data
+        e = self._validation_errors[SAVEFRAME]
+        e += self._validate_nmr_meta_data(nef, validNef)
 
         # go through all the saveframes in the Nef object
         for sf_name, saveframe in nef.items():
 
-            if saveframe.name != saveframe[SF_FRAMECODE]:
-                e = self._validation_errors['SAVE_FRAME']
+            if SF_FRAMECODE not in saveframe or saveframe.name != saveframe[SF_FRAMECODE]:
+                e = self._validation_errors[SAVEFRAME]
                 e += ["Saveframe.name for sf_framecode '{}' is not defined correctly.".format(saveframe[SF_FRAMECODE]), ]
                 break
 
@@ -150,11 +150,69 @@ class Validator(object):
 
                     break
             else:
-                e = self._validation_errors['SAVE_FRAME']
+                e = self._validation_errors[SAVEFRAME]
                 e += ["No sf_category '{}' found (possibly bad name defined).".format(saveframe[SF_CATEGORY]),]
 
         return self._validation_errors
 
+    def _validate_nmr_meta_data(self, nef, validNef):
+        """Check that the information in the meta_data is correct for this version
+        """
+        DICT_KEY = METADATA_DICTKEY
+        VALID_KEY = SPECIFICATION_KEY
+
+        if DICT_KEY not in nef:
+            return ['No {} saveframe.'.format(DICT_KEY)]
+        else:
+
+            # TODO:ED format name should be defined in the mmcif_nef.dic
+            format_name = NMR_EXCHANGE_FORMAT
+
+            if VALID_KEY not in validNef and VERSION not in validNef[VALID_KEY]:
+                return ['Version not found']
+            format_version = float(validNef[VALID_KEY][VERSION])
+
+            md = nef[DICT_KEY]
+            e = []
+
+            if FORMAT_NAME in md:
+                if md[FORMAT_NAME] != format_name:
+                    e.append("{} must be '{}'.".format(format_name, NMR_EXCHANGE_FORMAT))
+
+            if FORMAT_VERSION in md:
+                mdVersion = float(md[FORMAT_VERSION])
+                if mdVersion < format_version:
+                    e.append('This reader (version {}) does not support {}.'.format(format_version, mdVersion))
+
+            if CREATION_DATE in md:
+                # TODO: ED How to validate the creation date?
+                pass
+
+            if UUID in md:
+                # TODO: ED How to validate the uuid?
+                pass
+
+            return e
+
+    # def isValid(self, nef=None):
+    #     if nef is None:
+    #         nef = self.nef
+    #     self.validation_errors = dict()
+    #
+    #     # self.validation_errors.update(self._validate_datablock(nef))
+    #     self.validation_errors.update(self._validate_saveframe_fields(nef))
+    #     self.validation_errors.update(self._validate_required_saveframes(nef))
+    #     self.validation_errors.update(self._validate_metadata(nef))
+    #     self.validation_errors.update(self._validate_molecular_system(nef))
+    #     self.validation_errors.update(self._validate_chemical_shift_lists(nef))
+    #     self.validation_errors.update(self._validate_distance_restraint_lists(nef))
+    #     self.validation_errors.update(self._validate_dihedral_restraint_lists(nef))
+    #     self.validation_errors.update(self._validate_rdc_restraint_lists(nef))
+    #     self.validation_errors.update(self._validate_peak_lists(nef))
+    #     self.validation_errors.update(self._validate_linkage_table(nef))
+    #
+    #     v = list(self.validation_errors.values())
+    #     return not any(v)
 
     def _validate_datablock(self, nef=None):
         # not required as the validator is subclassed from NefImporter
