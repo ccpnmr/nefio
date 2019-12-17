@@ -30,7 +30,6 @@ __date__ = "$Date: 2017-03-23 16:50:22 +0000 (Thu, March 23, 2017) $"
 #=========================================================================================
 
 import re
-# from . import NefImporter as Nef
 
 NMR_EXCHANGE_FORMAT = 'nmr_exchange_format'
 FRAME_PREFIX = 'nef_saveframe_'
@@ -53,6 +52,7 @@ FORMAT_VERSION = 'format_version'
 CREATION_DATE = 'creation_date'
 UUID = 'uuid'
 VERSION = 'version'
+CCPN_PREFIX = 'ccpn_'
 
 
 class Validator(object):
@@ -63,6 +63,8 @@ class Validator(object):
         self._validation_errors = None
 
     def isValid(self, nef=None, validNef=None):
+        """Return whether the Nef file is valid
+        """
         if nef is None:
             nef = self.nef
         if validNef is None:
@@ -149,6 +151,12 @@ class Validator(object):
                             e += ["Error reading loop '{}'.".format(loop), ]
 
                     break
+
+                elif SF_CATEGORY in saveframe and saveframe[SF_CATEGORY].startswith(CCPN_PREFIX):
+
+                    # skip ccpn_ specific categories for now.
+                    break
+
             else:
                 e = self._validation_errors[SAVEFRAME]
                 e += ["No sf_category '{}' found (possibly bad name defined).".format(saveframe[SF_CATEGORY]),]
@@ -643,6 +651,6 @@ class Validator(object):
     def __dict_nonallowed_keys(self, dct, allowed_keys, label=None):
         if label is None:
             return ["Field '{}' not allowed.".format(key)
-                    for key in dct.keys() if key not in allowed_keys]
+                    for key in dct.keys() if key not in allowed_keys and not key.startswith(CCPN_PREFIX)]
         return ["Field '{}' not allowed in {}.".format(key, label)
-                for key in dct.keys() if key not in allowed_keys]
+                for key in dct.keys() if key not in allowed_keys and not key.startswith(CCPN_PREFIX)]
