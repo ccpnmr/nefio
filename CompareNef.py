@@ -19,12 +19,12 @@ Command Line Usage:
 
     -i, --ignoreblockname   Ignore the blockname when comparing two Nef files
                             May be required when converting Nef files through
-                            different applications
-                            May be used with -f and -b
+                            different applications.
+                            May be used with -f and -b.
 
     -f inFile1 inFile2, --file inFile1 inFile2
                             Compare two Nef files and print the results to the
-                            screen
+                            screen.
 
     -b inDir1 inDir2 outDir, --block inDir1 inDir2 outDir
                             compare Nef files common to directories
@@ -34,9 +34,13 @@ Command Line Usage:
     -s, --screen            Output batch processing to screen, default is to .txt files
                             may be used with -b
 
-    -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
-                            the extension, where n is the next available number.
+    -o, --overwrite         Overwrite existing .txt files. If false then files are
+                            appended with '(n)' before the extension, where n is
+                            the next available number.
 
+    -c, --create            Automatically create directories as required.
+
+    -I, --ignorecase        Ignore case when comparing items.
 
 Details of the contents of Nef files can be found in GenericStarParser
 The general structure of a Nef file is:
@@ -121,8 +125,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:33:01 +0100 (Fri, July 07, 2017) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2019-12-19 15:49:06 +0000 (Thu, December 19, 2019) $"
 __version__ = "$Revision: 3.0.0 $"
 #=========================================================================================
 # Created
@@ -134,7 +138,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 #=========================================================================================
 
 import os
-# import time
 import copy
 import sys
 from ccpn.util.nef import GenericStarParser, StarIo
@@ -142,14 +145,9 @@ from ccpn.util import Path
 from ccpn.util.SafeFilename import safeOpen
 import unittest
 from typing import Optional
-# import json
-# from collections import OrderedDict
-# import contextlib
-# import difflib
 from ast import literal_eval
 from os import listdir
 from os.path import isfile, join
-import textwrap
 import re
 
 
@@ -162,57 +160,28 @@ LOOP = ''
 COLUMN = ''
 
 
-# could add some command-line switches to control the options
-# would need to add a command-line parser
-
-# DATAEXTENT = 'dataExtent:'
-# DATABLOCK = 'dataBlock:'
-# SAVEFRAME = 'saveFrame:'
-# LOOP = 'Loop:'
-# COLUMN = 'Column'
-
 def defineArguments():
     """Define the arguments of the program
     :return argparse instance
     """
     import argparse
 
-    # parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-    #   description=textwrap.dedent("""
-    # Command Line Usage:
-    #   compareNef for execution from the command line with a suitable script
-    #   An example can be found in AnalysisV3/bin/compareNef:
-    #
-    #     #!/usr/bin/env sh
-    #     export CCPNMR_TOP_DIR="$(dirname $(cd $(dirname "$0"); pwd))"
-    #     export ANACONDA3=${CCPNMR_TOP_DIR}/miniconda
-    #     export PYTHONPATH=${CCPNMR_TOP_DIR}/src/python:${CCPNMR_TOP_DIR}/src/c
-    #     ${ANACONDA3}/bin/python ${CCPNMR_TOP_DIR}/src/python/ccpn/util/nef/compareNef.py $*"""),
-    #
-    #   epilog="""
-    # Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
-    # Comparisons are made for all data structures that have the same name.
-    # Differences for items within a column are listed in the form:
-    #   dataExtent:dataBlock:saveFrame:Loop:  <Column>: columnName  <rowIndex>: row  -->  value1 != value2
-    #
-    # dataExtents, dataBlocks, saveFrames, Loops, columns present only in one file are listed.
-    #   dataExtent:dataBlock:saveFrame:Loop: contains --> parameter1
-    #                                                     parameter2
-    #                                                     ...
-    #                                                     parameterN""")
-
     parser = argparse.ArgumentParser(description='Compare the contents of Nef files', prog='compareNef', usage='%(prog)s [options]',
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-H', '--Help', dest='Help', action='store_true', default=False, help='Show detailed help')
+    parser.add_argument('-H', '--Help', dest='help', action='store_true', default=False, help='Show detailed help')
     parser.add_argument('-i', '--ignoreblockname', dest='ignoreBlockName', action='store_true', default=False,
                         help='Ignore the blockname when comparing two Nef files')
     parser.add_argument('-f', '--file', dest='inFiles', nargs=2, metavar=('inFile1', 'inFile2'), default=None,
                         help='Compare two Nef files and print the results to the screen')
     parser.add_argument('-b', '--block', dest='blockDirs', nargs=3, metavar=('inDir1', 'inDir2', 'outDir'), default=None,
                         help='Batch mode: compare the contents of two directories')
-    parser.add_argument('-s', '--screen', dest='Screen', action='store_true', default=False, help='Output batch processing to screen')
-    parser.add_argument('-k', '--keep', dest='keepExisting', action='store_true', default=False,
-                        help='Keep existing .txt files. New files are appended with "(n)"')
+    parser.add_argument('-s', '--screen', dest='screen', action='store_true', default=False, help='Output batch processing to screen')
+    parser.add_argument('-o', '--overwrite', dest='overwriteExisting', action='store_true', default=False,
+                        help='Overwrite existing .txt files. If false, new files are appended with "(n)"')
+    parser.add_argument('-c', '--create', dest='createDirs', action='store_true', default=False,
+                        help='Create directories as required')
+    parser.add_argument('-I', '--ignorecase', dest='ignoreCase', action='store_true', default=False,
+                        help='Ignore case when comparing items.')
 
     return parser
 
@@ -399,21 +368,39 @@ def addToList(inList, cItem, nefList) -> list:
         cItem3.list.append(list(inList))  # nest the list within the cItem
         nefList.append(nefItem(cItem=cItem3))
 
-    # if len(inList) > 0:
-    #   cItem3 = copy.deepcopy(cItem)
-    #   lineTab = len('contains --> ')+len(cItem.list)+1
-    #   for cc in cItem.list:
-    #     lineTab += len(cc)
-    #   preStr = '\n'+' '*lineTab
-    #   cItem3.list.append('contains --> '+preStr.join(inList))
-    #   nefList.append(nefItem(cItem=cItem3))
-
-    # for eachItem in inList:
-    #   cItem3 = copy.deepcopy(cItem)
-    #   cItem3.list.append('contains --> '+eachItem)
-    #   nefList.append(nefItem(cItem=cItem3))
-
     return nefList
+
+
+#=========================================================================================
+# _compareDicts
+#=========================================================================================
+
+def _compareDicts(dd1, dd2):
+    """Compare the contents of two dictionaries
+    """
+    if dd1 == dd2:
+        return True
+
+    if commandLineArguments.ignoreCase:
+        # simple compare - make lowercase dictionaries and check equivalent
+        # not perfect as may have mix of upper/lowercase keys that are the same
+        try:
+            lowerDd1 = literal_eval(str(dd1).lower())
+            lowerDd2 = literal_eval(str(dd2).lower())
+
+            if len(dd1.keys()) != len(lowerDd1.keys()):
+                return False
+            if len(dd2.keys()) != len(lowerDd2.keys()):
+                return False
+
+            if lowerDd1 == lowerDd2:
+                return True
+
+        except (SyntaxError, ValueError, AssertionError):
+            # trap errors generated from a bad literal_eval
+            return False
+
+    return False
 
 
 #=========================================================================================
@@ -469,7 +456,8 @@ def compareLoops(loop1: GenericStarParser.Loop,
                 loopValue1 = loop1.data[rowIndex][compName]
                 loopValue2 = loop2.data[rowIndex][compName]
 
-                if loopValue1 != loopValue2:
+                if not ((loopValue1 == loopValue2) or
+                        ((str(loopValue1).lower() == str(loopValue2).lower()) and commandLineArguments.ignoreCase)):
 
                     # The value_strings are different
                     # Check to see if they are dictionaries
@@ -482,12 +470,9 @@ def compareLoops(loop1: GenericStarParser.Loop,
 
                         loopValue1 = literal_eval(loopValue1)
                         loopValue2 = literal_eval(loopValue2)
-                        # assert isinstance(loopValue1, dict)
-                        # assert isinstance(loopValue2, dict)
 
                         if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
-                            if loopValue1 != loopValue2:
-                                # may need a deeper compare of inserted dictionaries in here
+                            if not _compareDicts(loopValue1, loopValue2):
                                 cItem3 = copy.deepcopy(cItem)
                                 cItem3.list.append(LOOP + loop1.name)
                                 cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
@@ -496,9 +481,9 @@ def compareLoops(loop1: GenericStarParser.Loop,
                                                    + str(loopValue2))
                                 cItem3.inWhich = 3
                                 nefList.append(nefItem(cItem=cItem3))
-                        else:
-                            # not both dicts so compare as normal strings
 
+                        else:
+                            # not both dicts so compare is applicable
                             cItem3 = copy.deepcopy(cItem)
                             cItem3.list.append(LOOP + loop1.name)
                             cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
@@ -509,6 +494,7 @@ def compareLoops(loop1: GenericStarParser.Loop,
                             nefList.append(nefItem(cItem=cItem3))
 
                     except (SyntaxError, ValueError, AssertionError):
+
                         # loopvalues cannot be converted to proper values
                         # need to check that comments are being loaded correctly
 
@@ -535,7 +521,7 @@ def compareLoops(loop1: GenericStarParser.Loop,
 
         #TODO
         # need to add a further test here, could do a diff on the tables which would pick up
-        # insertions to the table - this columns would need to be reordered for this to work
+        # insertions to the table - the columns would need to be reordered for this to work
         # what if there are a different number of columns?
         # also check for Mandatory items
 
@@ -796,6 +782,13 @@ def batchCompareNefFiles(inDir1, inDir2, outDir):
     inFileList = [f for f in listdir(inDir1) if isfile(join(inDir1, f)) and f[-4:] == '.nef']
     outFileList = [f for f in listdir(inDir2) if isfile(join(inDir2, f)) and f[-4:] == '.nef']
 
+    if not (os.path.exists(outDir) and os.path.isdir(outDir)):
+        if commandLineArguments.createDirs is True:
+            os.mkdir(outDir)
+        else:
+            print('Error: No such directory:', str(outDir))
+            return
+
     for fl in inFileList:
         if fl in outFileList:
 
@@ -807,7 +800,7 @@ def batchCompareNefFiles(inDir1, inDir2, outDir):
 
             nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl))
 
-            if commandLineArguments.Screen is True:
+            if commandLineArguments.screen is True:
 
                 # strip the .nef from the end
                 outFileName = join(outDir, fl[:-4] + '.txt')
@@ -819,7 +812,7 @@ def batchCompareNefFiles(inDir1, inDir2, outDir):
                 # strip the .nef from the end
                 outFileName = join(outDir, fl[:-4] + '.txt')
 
-                if commandLineArguments.keepExisting is True:
+                if commandLineArguments.overwriteExisting is False:
 
                     with safeOpen(outFileName, 'w') as (outLog, safeFileName):
                         print('Batch processing %s > %s' % (fl, os.path.basename(safeFileName)))
@@ -937,10 +930,14 @@ if __name__ == '__main__':
 
       -s, --screen            Output batch processing to screen, default is to .txt files
                               may be used with -b
+
+      -o, --overwrite         Overwrite existing .txt files. If false then files are
+                              appended with '(n)' before the extension, where n is 
+                              the next available number.
                               
-      -k, --keep              Keep existing .txt files. New files are appended with '(n)' before
-                              the extension, where n is the next available number. 
+      -c, --create            Automatically create directories as required. 
       
+      -I, --ignorecase        Ignore case when comparing items.
                           
     Searches through all objects: dataExtents, dataBlocks, saveFrames and Loops within the files.
     Comparisons are made for all data structures that have the same name.
@@ -959,7 +956,7 @@ if __name__ == '__main__':
     parser = defineArguments()
     commandLineArguments = parser.parse_args()
 
-    if commandLineArguments.Help:
+    if commandLineArguments.help:
         print(helpText)
     else:
         if commandLineArguments.inFiles is not None:  # assume compareNef inFile1 inFile2
