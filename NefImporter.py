@@ -213,7 +213,6 @@ from collections import OrderedDict
 # this is a fix to get the import to work when running as a standalone
 # when importing into your own code, it can be safely removed
 
-
 def import_parents(level=1):
     global __package__
     file = Path(__file__).resolve()
@@ -1085,21 +1084,34 @@ class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
 
 
 if __name__ == '__main__':
-    test = NefImporter(errorLogging=el.NEF_STANDARD)
-    test.loadFile('/Users/ejb66/PycharmProjects/Git/NEF/data_1_1/CCPN_Commented_Example.nef')
 
+    # define the NefImporter with standard logging
+    test = NefImporter(errorLogging=el.NEF_STANDARD)
+    testPath = os.path.join(os.getcwd(), 'NEF', 'data_1_1', 'CCPN_Commented_Example.nef')
+    testPathOut = os.path.join(os.getcwd(), 'NEF', 'data_1_1', 'CCPN_Commented_Example_Out.nef')
+
+    if not os.path.exists(testPath):
+        raise RuntimeError('Error: %s not found' % testPath)
+
+    # load a testFile
+    test.loadFile(testPath)
+
+    # print the categories contained in the nef
     print(test.getCategories())
     names = test.getSaveFrameNames()
 
     validNef = NefImporter(errorLogging=el.NEF_STANDARD)
 
+    # oad the validation dictionary
     infile = 'mmcif_nef.dic'
-    filePath = os.path.join(os.getcwd(), infile)
-    # converter = Specification.CifDicConverter(open(filePath).read())
-    # converter.convertToNef()
+    filePath = os.path.join(os.getcwd(), 'NEF', 'specification', infile)
+    if not os.path.exists(filePath):
+        raise RuntimeError('Error: %s not found' % infile)
 
     test.loadValidateDictionary(filePath)
     validCheck = test.isValid
+
+    # print out any validation errors
     print('~~~~~~~~~~~~~~~~~~~~~~\nValid Nef:', validCheck)
     if not validCheck:
         print('Error Nef:', test.validErrorLog)
@@ -1108,16 +1120,9 @@ if __name__ == '__main__':
             print('  >>>', k)
             for err in v:
                 print('  >>>        ', err)
-
     print('~~~~~~~~~~~~~~~~~~~~~~')
 
-    # validNef._nefDict = converter.result
-
-    # loop through the saveframes in the test dict and compare to the validNef
-
-    # result = Validator.Validator(None)
-    # result._newValid(test._nefDict, validNef._nefDict)
-
+    # examples of printing saveFrames information
     print(names)
     names = test.getSaveFrameNames(returnType=NEF_RETURNALL)
     print(names)
@@ -1126,6 +1131,7 @@ if __name__ == '__main__':
     names = test.getSaveFrameNames(returnType=NEF_RETURNOTHER)
     print(names)
 
+    # testing the different types of errors trapping - try to find a saveFrame called 'notFound'
     sf1 = None
     if names:
         sf1 = test.getSaveFrame(names[0])
@@ -1138,10 +1144,14 @@ if __name__ == '__main__':
     ts = test.toString()
     test.fromString(ts)
 
+    # testing the different errors from searching for saveFrames
     if sf1 is not None:
+
+        # get the list of tables
         print(sf1.name)
         print(sf1.getTableNames())
 
+        # get a table as a pandas dataframe
         table = sf1.getTable()
         sf1.getTable('nmr_atom', asPandas=True)
         table = sf1.getTable('nmr_atom', asPandas=True)
@@ -1174,7 +1184,7 @@ if __name__ == '__main__':
         print('Error: %s' % str(es))
 
     print('Testing saveFile')
-    print('SAVE ', test.saveFile('/Users/ejb66/PycharmProjects/Git/NEF/data_1_1/CCPN_Commented_Example_Out.nef'))
+    print('SAVE ', test.saveFile(testPathOut))
     print(test.lastError)
 
     # test meta creation of category names

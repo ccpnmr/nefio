@@ -116,7 +116,7 @@ compareNef contains the following routines:
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -126,7 +126,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2019-12-19 15:49:06 +0000 (Thu, December 19, 2019) $"
+__dateModified__ = "$dateModified: 2020-01-14 11:49:36 +0000 (Tue, January 14, 2020) $"
 __version__ = "$Revision: 3.0.0 $"
 #=========================================================================================
 # Created
@@ -140,9 +140,37 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import os
 import copy
 import sys
-from ccpn.util.nef import GenericStarParser, StarIo
-from ccpn.util import Path
-from ccpn.util.SafeFilename import safeOpen
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# this is a fix to get the import to work when running as a standalone
+# when importing into your own code, it can be safely removed
+
+def import_parents(level=1):
+    global __package__
+    file = Path(__file__).resolve()
+    parent, top = file.parent, file.parents[level]
+
+    sys.path.append(str(top))
+    try:
+        sys.path.remove(str(parent))
+    except ValueError:  # already removed
+        pass
+
+    __package__ = '.'.join(parent.parts[len(top.parts):])
+    importlib.import_module(__package__)  # won't be needed after that
+
+
+if __name__ == '__main__' and __package__ is None:
+    import importlib
+    from pathlib import Path
+
+
+    import_parents()
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+from . import GenericStarParser, StarIo
+from .SafeOpen import safeOpen
 import unittest
 from typing import Optional
 from ast import literal_eval
@@ -150,8 +178,6 @@ from os import listdir
 from os.path import isfile, join
 import re
 
-
-TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
 
 DATAEXTENT = ''
 DATABLOCK = ''
@@ -162,6 +188,7 @@ COLUMN = ''
 
 def defineArguments():
     """Define the arguments of the program
+
     :return argparse instance
     """
     import argparse
@@ -191,8 +218,7 @@ def defineArguments():
 #=========================================================================================
 
 class nefItem():
-    """
-    Holds the contents of a single Nef comparison
+    """Holds the contents of a single Nef comparison
     inWhich   a flag labelling which file the item was found in
               1 = found in the first file, 2 = found on the second file, 3 = common to both
     list      a list of strings containing the comparison information
@@ -212,11 +238,11 @@ class nefItem():
 #=========================================================================================
 
 def _loadGeneralFile(path=None):
-    """
-    Load a file with the given pathname and return a dict of the contents
+    """Load a file with the given pathname and return a dict of the contents
+
     :return entry:dict
     """
-    usePath = path if path.startswith('/') else os.path.join(TEST_FILE_PATH, path)
+    usePath = path if path.startswith('/') else os.path.join(os.getcwd(), path)
     # t0 = time.time()
     entry = StarIo.parseNefFile(usePath)  # 'lenient')
     # print("Parsing time %s for %s" % (time.time() - t0, path))
@@ -229,8 +255,7 @@ def _loadGeneralFile(path=None):
 #=========================================================================================
 
 def printFile(thisFile):
-    """
-    Print a file to the screen
+    """Print a file to the screen
     """
     print('~' * 80)
     print(thisFile)
@@ -259,8 +284,8 @@ def printFile(thisFile):
 #=========================================================================================
 
 def sizeNefList(nefList, whichType=0) -> int:
-    """
-    List only those items that are of type whichType
+    """List only those items that are of type whichType
+
     :param nefList: list to print
     :param whichType: type to print
     """
@@ -277,8 +302,8 @@ def sizeNefList(nefList, whichType=0) -> int:
 #=========================================================================================
 
 def printWhichList(nefList, whichType=0):
-    """
-    List only those items that are of type whichType
+    """List only those items that are of type whichType
+
     :param nefList: list to print
     :param whichType: type to print
     """
@@ -298,8 +323,7 @@ def printWhichList(nefList, whichType=0):
 #=========================================================================================
 
 def printCompareList(nefList, inFile1, inFile2):
-    """
-    Print the contents of the nef compare list to the screen
+    """Print the contents of the nef compare list to the screen
 
     Output is in three parts:
       - items that are present only in the first file
@@ -318,14 +342,17 @@ def printCompareList(nefList, inFile1, inFile2):
         print('TypeError: inFile2 must be a string.')
         return
 
+    # print the items that are only present in the first nefFile
     if sizeNefList(nefList, whichType=1) > 0:
         print('\nItems that are only present in ' + inFile1 + ':')
         printWhichList(nefList, 1)
 
+    # print the items that are only present in the second nefFile
     if sizeNefList(nefList, whichType=2) > 0:
         print('\nItems that are only present in ' + inFile2 + ':')
         printWhichList(nefList, 2)
 
+    # print the common items
     if sizeNefList(nefList, whichType=3) > 0:
         print('\nItems that are present in both files:')
         printWhichList(nefList, 3)
@@ -336,9 +363,9 @@ def printCompareList(nefList, inFile1, inFile2):
 #=========================================================================================
 
 def _filterName(inName) -> str:
-    """
-    Remove rogue `n` quotes from the names.
-    This is currently only a test
+    """Remove rogue `n` quotes from the names.
+    (This is currently only a test)
+
     :param inName:
     :return:
     """
@@ -354,8 +381,7 @@ def _filterName(inName) -> str:
 #=========================================================================================
 
 def addToList(inList, cItem, nefList) -> list:
-    """
-    Append cItem to the compare list
+    """Append cItem to the compare list
     Currently adds one cItem with a list as the last element
 
     :param inList: a list of items to add to the end of cItem
@@ -375,13 +401,18 @@ def addToList(inList, cItem, nefList) -> list:
 # _compareDicts
 #=========================================================================================
 
-def _compareDicts(dd1, dd2):
+def _compareDicts(dd1, dd2, options):
     """Compare the contents of two dictionaries
+
+    :param dd1: dict containing keys from first nef file
+    :param dd2:  dict containing keys from second nef file
+    :param options: nameSpace holding the commandLineArguments
+    :return:
     """
     if dd1 == dd2:
         return True
 
-    if commandLineArguments.ignoreCase:
+    if options.ignoreCase:
         # simple compare - make lowercase dictionaries and check equivalent
         # not perfect as may have mix of upper/lowercase keys that are the same
         try:
@@ -409,12 +440,16 @@ def _compareDicts(dd1, dd2):
 
 def compareLoops(loop1: GenericStarParser.Loop,
                  loop2: GenericStarParser.Loop,
+                 options,
                  cItem=None,
                  nefList=None) -> list:
-    """
-    Compare two Loops
+    """Compare two Loops
+
     :param loop1: name of the first Loop object
     :param loop2: name of the second Loop object
+    :param options: nameSpace holding the commandLineArguments
+    :param cItem: list of str describing differences between nefItems
+    :param nefList: input of nefItems
     :return: list of type nefItem
     """
     if cItem is None:
@@ -457,7 +492,7 @@ def compareLoops(loop1: GenericStarParser.Loop,
                 loopValue2 = loop2.data[rowIndex][compName]
 
                 if not ((loopValue1 == loopValue2) or
-                        ((str(loopValue1).lower() == str(loopValue2).lower()) and commandLineArguments.ignoreCase)):
+                        ((str(loopValue1).lower() == str(loopValue2).lower()) and options.ignoreCase)):
 
                     # The value_strings are different
                     # Check to see if they are dictionaries
@@ -472,7 +507,7 @@ def compareLoops(loop1: GenericStarParser.Loop,
                         loopValue2 = literal_eval(loopValue2)
 
                         if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
-                            if not _compareDicts(loopValue1, loopValue2):
+                            if not _compareDicts(loopValue1, loopValue2, options):
                                 cItem3 = copy.deepcopy(cItem)
                                 cItem3.list.append(LOOP + loop1.name)
                                 cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
@@ -549,12 +584,17 @@ def compareLoops(loop1: GenericStarParser.Loop,
 
 def compareSaveFrames(saveFrame1: GenericStarParser.SaveFrame,
                       saveFrame2: GenericStarParser.SaveFrame,
+                      options,
                       cItem=None,
                       nefList=None) -> list:
     """
     Compare two saveFrames, if they have the same name then check their contents
+
     :param saveFrame1: name of the first SaveFrame object
     :param saveFrame2: name of the second SaveFrame object
+    :param options: nameSpace holding the commandLineArguments
+    :param cItem: list of str describing differences between nefItems
+    :param nefList: input of nefItems
     :return: list of type nefItem
     """
     if cItem is None:
@@ -567,9 +607,6 @@ def compareSaveFrames(saveFrame1: GenericStarParser.SaveFrame,
     inLeft = set(lSet).difference(rSet).difference({' '})
     dSet = set(lSet).intersection(rSet).difference({' '})
     inRight = set(rSet).difference(lSet).difference({' '})
-
-    # lVSet = [str(bl)+':'+str(saveFrame1[bl]) if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame1]
-    # rVSet = [str(bl)+':'+str(saveFrame2[bl]) if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame2]
 
     lVSet = [str(bl) if not isinstance(saveFrame1[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame1]
     rVSet = [str(bl) if not isinstance(saveFrame2[bl], GenericStarParser.Loop) else ' ' for bl in saveFrame2]
@@ -601,7 +638,7 @@ def compareSaveFrames(saveFrame1: GenericStarParser.SaveFrame,
     for compName in dSet:
         # compare the loop items of the matching saveFrames
 
-        compareLoops(saveFrame1[compName], saveFrame2[compName], cItem=cItem3, nefList=nefList)
+        compareLoops(saveFrame1[compName], saveFrame2[compName], options, cItem=cItem3, nefList=nefList)
 
     for compName in dVSet:
         # compare the other items in the saveFrames
@@ -625,12 +662,16 @@ def compareSaveFrames(saveFrame1: GenericStarParser.SaveFrame,
 
 def compareDataBlocks(dataBlock1: GenericStarParser.DataBlock,
                       dataBlock2: GenericStarParser.DataBlock,
+                      options,
                       cItem=None,
                       nefList=None) -> list:
-    """
-    Compare two dataBlocks, if they have the same name then check their contents
+    """Compare two dataBlocks, if they have the same name then check their contents
+
     :param dataBlock1: name of the first DataBlock object
     :param dataBlock2: name of the second DataBlock object
+    :param options: nameSpace holding the commandLineArguments
+    :param cItem: list of str describing differences between nefItems
+    :param nefList: input of nefItems
     :return: list of type nefItem
     """
     if cItem is None:
@@ -664,7 +705,7 @@ def compareDataBlocks(dataBlock1: GenericStarParser.DataBlock,
     cItem3.list.append(DATABLOCK + dataBlock1.name)
     cItem3.inWhich = 3
     for compName in dSet:
-        compareSaveFrames(dataBlock1[compName], dataBlock2[compName], cItem=cItem3, nefList=nefList)
+        compareSaveFrames(dataBlock1[compName], dataBlock2[compName], options, cItem=cItem3, nefList=nefList)
 
     return nefList
 
@@ -675,12 +716,16 @@ def compareDataBlocks(dataBlock1: GenericStarParser.DataBlock,
 
 def compareDataExtents(dataExt1: GenericStarParser.DataExtent,
                        dataExt2: GenericStarParser.DataExtent,
+                       options,
                        cItem=None,
                        nefList=None) -> list:
-    """
-    Compare two dataExtents, if they have the same name then check their contents
+    """Compare two dataExtents, if they have the same name then check their contents
+
     :param dataExt1: name of the first DataExtent object
     :param dataExt2: name of the second DataExtent object
+    :param options: nameSpace holding the commandLineArguments
+    :param cItem: list of str describing differences between nefItems
+    :param nefList: input of nefItems
     :return: list of type nefItem
     """
     if cItem is None:
@@ -714,7 +759,7 @@ def compareDataExtents(dataExt1: GenericStarParser.DataExtent,
     cItem3.list = [DATAEXTENT + dataExt1.name]
     cItem3.inWhich = 3  # both
     for compName in dSet:
-        compareDataBlocks(dataExt1[compName], dataExt2[compName], cItem=cItem3, nefList=nefList)
+        compareDataBlocks(dataExt1[compName], dataExt2[compName], options, cItem=cItem3, nefList=nefList)
 
     return nefList
 
@@ -723,11 +768,14 @@ def compareDataExtents(dataExt1: GenericStarParser.DataExtent,
 # compareFiles
 #=========================================================================================
 
-def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list]:
-    """
-    Compare two Nef files and return comparison as a nefItem list
+def compareNefFiles(inFile1, inFile2, options, cItem=None, nefList=None) -> Optional[list]:
+    """Compare two Nef files and return comparison as a nefItem list
+
     :param inFile1: name of the first file
     :param inFile2: name of the second file
+    :param options: nameSpace holding the commandLineArguments
+    :param cItem: list of str describing differences between nefItems
+    :param nefList: input of nefItems
     :return: list of type nefItem
     """
     if cItem is None:
@@ -752,8 +800,8 @@ def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list
             print('Error on line {}'.format(sys.exc_info()[-1].tb_lineno), type(e), e)
             return None
 
-        if commandLineArguments.ignoreBlockName is False:
-            compareDataExtents(NefData1, NefData2, cItem=cItem, nefList=nefList)
+        if options.ignoreBlockName is False:
+            compareDataExtents(NefData1, NefData2, options, cItem=cItem, nefList=nefList)
         else:
 
             # assumes that there is only one block in a file
@@ -761,7 +809,7 @@ def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list
 
             compList1 = [cn for cn in NefData1]
             compList2 = [cn for cn in NefData2]
-            compareDataBlocks(NefData1[compList1[0]], NefData2[compList2[0]], cItem=cItem, nefList=nefList)
+            compareDataBlocks(NefData1[compList1[0]], NefData2[compList2[0]], options, cItem=cItem, nefList=nefList)
 
     return nefList
 
@@ -770,68 +818,87 @@ def compareNefFiles(inFile1, inFile2, cItem=None, nefList=None) -> Optional[list
 # Test_Compare_Files
 #=========================================================================================
 
-def batchCompareNefFiles(inDir1, inDir2, outDir):
-    """
-    Batch compare the Nef files common to the two directories
+def batchCompareNefFiles(inDir1, inDir2, outDir, options):
+    """Batch compare the Nef files common to the two directories
     For each file found, write the compare log to the corresponding .txt file
 
     :param inDir1:
     :param inDir2:
     :param outDir:
+    :param options: nameSpace holding the commandLineArguments
     """
     inFileList = [f for f in listdir(inDir1) if isfile(join(inDir1, f)) and f[-4:] == '.nef']
     outFileList = [f for f in listdir(inDir2) if isfile(join(inDir2, f)) and f[-4:] == '.nef']
 
-    if not (os.path.exists(outDir) and os.path.isdir(outDir)):
-        if commandLineArguments.createDirs is True:
+    if not options.screen:
+        if options.createDirs is True and not os.path.exists(outDir):
             os.mkdir(outDir)
-        else:
+        if not (os.path.exists(outDir) and os.path.isdir(outDir)):
             print('Error: No such directory:', str(outDir))
             return
+
+    commonFiles = set(listdir(inDir1)) & set(listdir(inDir2))
+    if not commonFiles:
+        # if no files found then write message to the screen or log.tx in the out folder
+        if options.screen is True:
+            # strip the .nef from the end
+            print('inDir1: %s' % str(inDir1))
+            print('inDir2: %s' % str(inDir2))
+            print('No common files found')
+        else:
+            outFileName = join(outDir, 'log.txt')
+            if options.overwriteExisting is False:
+                with safeOpen(outFileName, 'w') as (outLog, safeFileName):
+                    outLog.write('inDir1: %s\n' % str(inDir1))
+                    outLog.write('inDir2: %s\n' % str(inDir2))
+                    outLog.write('No common files found')
+            else:
+                with open(outFileName, 'w') as outLog:
+                    sys.stdout = outLog
+                    outLog.write('inDir1: %s\n' % str(inDir1))
+                    outLog.write('inDir2: %s\n' % str(inDir2))
+                    outLog.write('No common files found')
+        return
 
     for fl in inFileList:
         if fl in outFileList:
 
-            # outFileName = join(outDir, fl[:-4] + '.txt')
-            # print('Batch processing %s > %s' % (fl, outFileName))
-
-            # keep the old output stream
-            stdOriginal = sys.stdout
-
-            nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl))
-
-            if commandLineArguments.screen is True:
+            if options.screen is True:
 
                 # strip the .nef from the end
                 outFileName = join(outDir, fl[:-4] + '.txt')
                 print('Batch processing %s > %s' % (fl, outFileName))
 
+                nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl), options)
                 printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
 
             else:
                 # strip the .nef from the end
                 outFileName = join(outDir, fl[:-4] + '.txt')
+                # keep the old output stream
+                stdOriginal = sys.stdout
 
-                if commandLineArguments.overwriteExisting is False:
+                if options.overwriteExisting is False:
 
                     with safeOpen(outFileName, 'w') as (outLog, safeFileName):
-                        print('Batch processing %s > %s' % (fl, os.path.basename(safeFileName)))
-
                         sys.stdout = outLog
+                        nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl), options)
+
+                        print('Batch processing %s > %s' % (fl, os.path.basename(safeFileName)))
                         print(join(inDir1, fl))
                         print(join(inDir2, fl))
                         printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
-                        sys.stdout = stdOriginal
 
                 else:
-                    print('Batch processing %s > %s' % (fl, outFileName))
-
                     with open(outFileName, 'w') as outLog:
                         sys.stdout = outLog
+                        nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl), options)
+
+                        print('Batch processing %s > %s' % (fl, outFileName))
                         print(join(inDir1, fl))
                         print(join(inDir2, fl))
                         printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
-                        sys.stdout = stdOriginal
+                sys.stdout = stdOriginal
 
 
 #=========================================================================================
@@ -839,57 +906,43 @@ def batchCompareNefFiles(inDir1, inDir2, outDir):
 #=========================================================================================
 
 class Test_Compare_Files(unittest.TestCase):
+    """Test the comparison of nef files and print the results
     """
-    Test the comparison of nef files and print the results
-    """
 
-    def _test_Compare_Files(self):
+    def test_Compare_Files(self):
+        """Load two files and compare
         """
-        Load two files and compare
-        """
-        # test set one
-        inFile1 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example.nef'
-        inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/starExamples/Commented_Example_Change.nef'
+        # define arguments to simulate command line
+        parser = defineArguments()
+        options = parser.parse_args([])
+
+        # set the two files to compare
+        inFile1 = os.path.join('testdata', 'Commented_Example.nef')
+        inFile2 = os.path.join('testdata', 'Commented_Example_Change.nef')
 
         print('\nTEST COMPARISON')
         print('   file1 = ' + inFile1)
         print('   file2 = ' + inFile2)
         print('Loading...')
-        nefList = compareNefFiles(inFile1, inFile2)
+
+        # load and output results
+        nefList = compareNefFiles(inFile1, inFile2, options)
         printCompareList(nefList, inFile1, inFile2)
 
-        # test set two
-        inFile1 = '/Users/ejb66/Desktop/Temporary/v3_exportNef/1nk2_docr_extended.ccpn.nef'
-        inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/1nk2_docr_extended.ccpn.nef'
-
-        print('~' * 80)
-        print('\nTEST COMPARISON')
-        print('   file1 = ' + inFile1)
-        print('   file2 = ' + inFile2)
-        print('Loading...')
-        nefList = compareNefFiles(inFile1, inFile2)
-        printCompareList(nefList, inFile1, inFile2)
-
-        inFile1 = '/Users/ejb66/Desktop/Temporary/v3_exportNef/2mqq_docr_extended.nef'
-        inFile2 = '/Users/ejb66/PycharmProjects/AnalysisV3/internal/data/NEF_test_data/NMRX/2mqq_docr_extended.nef'
-
-        print('~' * 80)
-        print('\nTEST COMPARISON')
-        print('   file1 = ' + inFile1)
-        print('   file2 = ' + inFile2)
-        print('Loading...')
-        nefList = compareNefFiles(inFile1, inFile2)
-        printCompareList(nefList, inFile1, inFile2)
-
-    def _test_Compare_BatchFiles(self):
+    def test_Compare_BatchFiles(self):
+        """Compare the Nef files in two directories
         """
-        Compare the Nef files in two directories
-        """
-        inDir1 = '/Users/ejb66/Desktop/Temporary/v3_exportNef'
-        inDir2 = '/Users/ejb66/Dropbox/CCPNdocsShared/NefTestData/v3'
-        outDir = '/Users/ejb66/Desktop/Temporary/v3_exportNef'
+        # define arguments to simulate command line
+        parser = defineArguments()
+        options = parser.parse_args([])
+        options.createDirs = True
+        options.overwriteExisting = False
 
-        batchCompareNefFiles(inDir1, inDir2, outDir)
+        inDir1 = os.path.join('testdata', 'testinfolder1')
+        inDir2 = os.path.join('testdata', 'testinfolder2')
+        outDir = os.path.join('testdata', 'testoutfolder')
+
+        batchCompareNefFiles(inDir1, inDir2, outDir, options)
 
 
 #=========================================================================================
@@ -959,17 +1012,21 @@ if __name__ == '__main__':
     if commandLineArguments.help:
         print(helpText)
     else:
-        if commandLineArguments.inFiles is not None:  # assume compareNef inFile1 inFile2
-            # inFile1 = sys.argv[1]
-            # inFile2 = sys.argv[2]
+        if commandLineArguments.inFiles is not None:
+            inFile0 = commandLineArguments.inFiles[0]
+            inFile1 = commandLineArguments.inFiles[1]
 
             print()
             print('Loading Nef Files...')
-            nefList = compareNefFiles(commandLineArguments.inFiles[0], commandLineArguments.inFiles[1])
-            printCompareList(nefList, commandLineArguments.inFiles[0], commandLineArguments.inFiles[1])
+            nefList = compareNefFiles(inFile0, inFile1, commandLineArguments)
+            printCompareList(nefList, inFile0, inFile1)
 
         elif commandLineArguments.blockDirs is not None:
-            batchCompareNefFiles(*commandLineArguments.blockDirs[:])
+            inDir0 = commandLineArguments.blockDirs[0]
+            inDir1 = commandLineArguments.blockDirs[1]
+            outDir = commandLineArguments.blockDirs[2]
+
+            batchCompareNefFiles(inDir0, inDir1, outDir, commandLineArguments)
 
         else:
             print('Incorrect arguments, use compareNef -h')

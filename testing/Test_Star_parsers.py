@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -13,8 +13,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: CCPN $"
-__dateModified__ = "$dateModified: 2017-07-07 16:33:02 +0100 (Fri, July 07, 2017) $"
+__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
+__dateModified__ = "$dateModified: 2020-01-14 11:49:36 +0000 (Tue, January 14, 2020) $"
 __version__ = "$Revision: 3.0.0 $"
 #=========================================================================================
 # Created
@@ -27,12 +27,35 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import os
 import time
+import sys
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# this is a fix to get the import to work when running as a standalone
+# when importing into your own code, it can be safely removed
+def import_parents(level=2):        # 2 because need to import with 2 dots below
+    global __package__
+    file = Path(__file__).resolve()
+    parent, top = file.parent, file.parents[level]
+
+    sys.path.append(str(top))
+    try:
+        sys.path.remove(str(parent))
+    except ValueError:  # already removed
+        pass
+
+    __package__ = '.'.join(parent.parts[len(top.parts):])
+    importlib.import_module(__package__)  # won't be needed after that
+
+
+if __name__ == '__main__' and __package__ is None:
+    import importlib
+    from pathlib import Path
+
+    import_parents()
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 from .. import GenericStarParser, StarIo
-from ccpn.util import Path
-
-
-TEST_FILE_PATH = os.path.join(Path.getTopDirectory(), 'internal', 'data', 'starExamples')
+from .Paths import TEST_FILE_PATH
 
 
 def _loadGeneralFile(path):
@@ -78,8 +101,8 @@ def test_nmrstar_4267():
 
 
 def test_nef_commented_example():
-    _loadGeneralFile('Commented_Example.nef')
-    _loadNefFile('Commented_Example.nef')
+    _loadGeneralFile('CCPN_Commented_Example.nef')
+    _loadNefFile('CCPN_Commented_Example.nef')
 
 
 def test_nef_2l9r_Paris_155():
@@ -104,7 +127,6 @@ def test_mmcif_1bgl_1bgm():
 
 def test_dic_mmcif_nef():
     print('\n\n', '# nef_dic', '#' * 60, '\n')
-    # _printContents(_loadGeneralFile('mmcif_nef.dic'))
     _loadGeneralFile('mmcif_nef.dic')
 
 
@@ -114,9 +136,13 @@ def test_dic_mmcif_nmr_star():
 
 def test_dic_mmcif_std():
     print('\n\n', '# mmcif_dic', '#' * 60, '\n')
-    # _printContents(_loadGeneralFile('mmcif_std.dic'))
     _loadGeneralFile('mmcif_std.dic')
 
 
 def test_dic_mmcif_pdbx_v40():
     _loadGeneralFile('mmcif_pdbx_v40.dic')
+
+
+if __name__ == '__main__':
+    # load and run a test cases
+    test_nef_commented_example()
