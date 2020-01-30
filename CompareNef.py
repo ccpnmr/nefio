@@ -591,7 +591,7 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
                 break
         else:
             if itm.inWhich == inWhich:
-                itm.list[-1].append(' < >>>>>> Column>: ' + compName + '  <rowIndex>: ' \
+                itm.list[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
                                     + str(rowIndex) + '  -->  ' \
                                     + str(loopValue1) + ' != ' \
                                     + str(loopValue2))
@@ -599,7 +599,7 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
 
     else:
         cItem3.list.append(LOOP + loop1.name)
-        cItem3.list.append([' < ****** Column>: ' + compName + '  <rowIndex>: ' \
+        cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
                             + str(rowIndex) + '  -->  ' \
                             + str(loopValue1) + ' != ' \
                             + str(loopValue2)])
