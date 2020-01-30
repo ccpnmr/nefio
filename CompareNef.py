@@ -521,32 +521,14 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
                             if not _compareDicts(loopValue1, loopValue2, options):
                                 _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich=3)
 
-                                # cItem3 = copy.deepcopy(cItem)
-                                # cItem3.list.append(LOOP + loop1.name)
-                                # cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
-                                #                     + str(rowIndex) + '  -->  ' \
-                                #                     + str(loopValue1) + ' != ' \
-                                #                     + str(loopValue2)])
-                                # cItem3.inWhich = 3
-                                # nefList.append(nefItem(cItem=cItem3))
-
                         else:
                             # not both dicts so compare is applicable
                             _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich=3)
-                            # cItem3 = copy.deepcopy(cItem)
-                            # cItem3.list.append(LOOP + loop1.name)
-                            # cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
-                            #                     + str(rowIndex) + '  -->  ' \
-                            #                     + str(loopValue1) + ' != ' \
-                            #                     + str(loopValue2)])
-                            # cItem3.inWhich = 3
-                            # nefList.append(nefItem(cItem=cItem3))
 
                     except (SyntaxError, ValueError, AssertionError):
 
                         # loopvalues cannot be converted to proper values
                         # need to check that comments are being loaded correctly
-
                         _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich=3)
 
                 else:
@@ -583,13 +565,20 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
 #=========================================================================================
 
 def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich):
+    """Check the list of already added items and append to the end OR create a new item
+    """
     cItem3 = copy.deepcopy(cItem)
+
+    # iterate through existing items
     for itm in nefList:
         for a, b in zip_longest(cItem3.list[:] + [LOOP + loop1.name],
                                 itm.list[:-1]):
+
+            # check that the tree of saveFrame names matches
             if a != b:
                 break
         else:
+            # check that it is the correct frame type (1=inleft only, 2=inRight only, 3=inBoth)
             if itm.inWhich == inWhich:
                 itm.list[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
                                     + str(rowIndex) + '  -->  ' \
@@ -598,6 +587,7 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
                 break
 
     else:
+        # create a new item
         cItem3.list.append(LOOP + loop1.name)
         cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
                             + str(rowIndex) + '  -->  ' \
