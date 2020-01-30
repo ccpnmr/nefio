@@ -150,12 +150,21 @@ import sys
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # this is a fix to get the import to work when running as a standalone
-# when importing into your own code, it can be safely removed
+# when importing into your own code, with PYTHON_PATH defined it can be safely removed
 
 def import_parents(level=1):
     global __package__
-    file = Path(__file__).resolve()
-    parent, top = file.parent, file.parents[level]
+
+    import sys
+    from os import path
+    import importlib
+
+    # pathlib does all this a lot nicer, but don't think it's in python2.7
+    top = parent = path.dirname(path.abspath(__file__))
+    package = []
+    for t in range(level):
+        package.insert(0, os.path.basename(top))
+        top = path.dirname(top)
 
     sys.path.append(str(top))
     try:
@@ -163,16 +172,12 @@ def import_parents(level=1):
     except ValueError:  # already removed
         pass
 
-    __package__ = '.'.join(parent.parts[len(top.parts):])
-    importlib.import_module(__package__)  # won't be needed after that
+    __package__ = str('.'.join(package))
+    importlib.import_module(__package__)
 
 
 if __name__ == '__main__' and __package__ is None:
-    import importlib
-    from pathlib import Path
-
-
-    import_parents()
+    import_parents(level=1)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 from . import GenericStarParser, StarIo
@@ -183,6 +188,13 @@ from os import listdir
 from os.path import isfile, join
 import re
 
+
+try:
+    # Python 3
+    from itertools import zip_longest
+except:
+    # python 2.7
+    from itertools import izip_longest as zip_longest
 
 DATAEXTENT = ''
 DATABLOCK = ''
@@ -441,7 +453,7 @@ def _compareDicts(dd1, dd2, options):
 # compareLoops
 #=========================================================================================
 
-def compareLoops(loop1, loop2,  options, cItem=None, nefList=None):
+def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     """Compare two Loops
 
     :param loop1: first Loop object, of type GenericStarParser.Loop
@@ -478,7 +490,7 @@ def compareLoops(loop1, loop2,  options, cItem=None, nefList=None):
         if len(loop1.data) != len(loop2.data):  # simple compare, same length tables
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(LOOP + loop1.name)
-            cItem3.list.append(' <rowLength>:  ' + str(len(loop1.data)) + ' != ' + str(len(loop2.data)))
+            cItem3.list.append([' <rowLength>:  ' + str(len(loop1.data)) + ' != ' + str(len(loop2.data))])
             cItem3.inWhich = 3
             nefList.append(nefItem(cItem=cItem3))
 
@@ -507,39 +519,35 @@ def compareLoops(loop1, loop2,  options, cItem=None, nefList=None):
 
                         if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
                             if not _compareDicts(loopValue1, loopValue2, options):
-                                cItem3 = copy.deepcopy(cItem)
-                                cItem3.list.append(LOOP + loop1.name)
-                                cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                                   + str(rowIndex) + '  -->  ' \
-                                                   + str(loopValue1) + ' != ' \
-                                                   + str(loopValue2))
-                                cItem3.inWhich = 3
-                                nefList.append(nefItem(cItem=cItem3))
+                                _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich=3)
+
+                                # cItem3 = copy.deepcopy(cItem)
+                                # cItem3.list.append(LOOP + loop1.name)
+                                # cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
+                                #                     + str(rowIndex) + '  -->  ' \
+                                #                     + str(loopValue1) + ' != ' \
+                                #                     + str(loopValue2)])
+                                # cItem3.inWhich = 3
+                                # nefList.append(nefItem(cItem=cItem3))
 
                         else:
                             # not both dicts so compare is applicable
-                            cItem3 = copy.deepcopy(cItem)
-                            cItem3.list.append(LOOP + loop1.name)
-                            cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                               + str(rowIndex) + '  -->  ' \
-                                               + str(loopValue1) + ' != ' \
-                                               + str(loopValue2))
-                            cItem3.inWhich = 3
-                            nefList.append(nefItem(cItem=cItem3))
+                            _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich=3)
+                            # cItem3 = copy.deepcopy(cItem)
+                            # cItem3.list.append(LOOP + loop1.name)
+                            # cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
+                            #                     + str(rowIndex) + '  -->  ' \
+                            #                     + str(loopValue1) + ' != ' \
+                            #                     + str(loopValue2)])
+                            # cItem3.inWhich = 3
+                            # nefList.append(nefItem(cItem=cItem3))
 
                     except (SyntaxError, ValueError, AssertionError):
 
                         # loopvalues cannot be converted to proper values
                         # need to check that comments are being loaded correctly
 
-                        cItem3 = copy.deepcopy(cItem)
-                        cItem3.list.append(LOOP + loop1.name)
-                        cItem3.list.append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                           + str(rowIndex) + '  -->  ' \
-                                           + str(loopValue1) + ' != ' \
-                                           + str(loopValue2))
-                        cItem3.inWhich = 3
-                        nefList.append(nefItem(cItem=cItem3))
+                        _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich=3)
 
                 else:
 
@@ -557,17 +565,46 @@ def compareLoops(loop1, loop2,  options, cItem=None, nefList=None):
         if loop1.data is None:
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(LOOP + loop1.name)
-            cItem3.list.append(' <Contains no data>')
+            cItem3.list.append([' <Contains no data>'])
             cItem3.inWhich = 1
             nefList.append(nefItem(cItem=cItem3))
         if loop2.data is None:
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(LOOP + loop2.name)
-            cItem3.list.append(' <Contains no data>')
+            cItem3.list.append([' <Contains no data>'])
             cItem3.inWhich = 2
             nefList.append(nefItem(cItem=cItem3))
 
     return nefList
+
+
+#=========================================================================================
+# _addItem to the NefList or append to existing
+#=========================================================================================
+
+def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, inWhich):
+    cItem3 = copy.deepcopy(cItem)
+    for itm in nefList:
+        for a, b in zip_longest(cItem3.list[:] + [LOOP + loop1.name],
+                                itm.list[:-1]):
+            if a != b:
+                break
+        else:
+            if itm.inWhich == inWhich:
+                itm.list[-1].append(' < >>>>>> Column>: ' + compName + '  <rowIndex>: ' \
+                                    + str(rowIndex) + '  -->  ' \
+                                    + str(loopValue1) + ' != ' \
+                                    + str(loopValue2))
+                break
+
+    else:
+        cItem3.list.append(LOOP + loop1.name)
+        cItem3.list.append([' < ****** Column>: ' + compName + '  <rowIndex>: ' \
+                            + str(rowIndex) + '  -->  ' \
+                            + str(loopValue1) + ' != ' \
+                            + str(loopValue2)])
+        cItem3.inWhich = inWhich
+        nefList.append(nefItem(cItem=cItem3))
 
 
 #=========================================================================================
@@ -634,9 +671,9 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
         if saveFrame1[compName] != saveFrame2[compName]:
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(SAVEFRAME + saveFrame2.name)
-            cItem3.list.append(' <Value>:  ' + compName + '  -->  ' \
-                               + str(saveFrame1[compName]) + ' != ' \
-                               + str(saveFrame2[compName]))
+            cItem3.list.append([' <Value>:  ' + compName + '  -->  ' \
+                                + str(saveFrame1[compName]) + ' != ' \
+                                + str(saveFrame2[compName])])
             cItem3.inWhich = 3
             nefList.append(nefItem(cItem=cItem3))
 
@@ -896,8 +933,8 @@ class Test_Compare_Files(unittest.TestCase):
         options = parser.parse_args([])
 
         # set the two files to compare
-        inFile1 = os.path.join('testdata', 'Commented_Example.nef')
-        inFile2 = os.path.join('testdata', 'Commented_Example_Change.nef')
+        inFile1 = str(os.path.join('.', 'nef', 'testdata', 'Commented_Example.nef'))
+        inFile2 = str(os.path.join('.', 'nef', 'testdata', 'Commented_Example_Change.nef'))
 
         print('\nTEST COMPARISON')
         print('   file1 = ' + inFile1)
