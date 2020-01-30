@@ -113,6 +113,12 @@ compareNef contains the following routines:
   printCompareList      print the compare list to the screen
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
@@ -172,7 +178,6 @@ if __name__ == '__main__' and __package__ is None:
 from . import GenericStarParser, StarIo
 from .SafeOpen import safeOpen
 import unittest
-from typing import Optional
 from ast import literal_eval
 from os import listdir
 from os.path import isfile, join
@@ -217,7 +222,7 @@ def defineArguments():
 # nefItem
 #=========================================================================================
 
-class nefItem():
+class nefItem(object):
     """Holds the contents of a single Nef comparison
     inWhich   a flag labelling which file the item was found in
               1 = found in the first file, 2 = found on the second file, 3 = common to both
@@ -243,9 +248,7 @@ def _loadGeneralFile(path=None):
     :return entry:dict
     """
     usePath = path if path.startswith('/') else os.path.join(os.getcwd(), path)
-    # t0 = time.time()
     entry = StarIo.parseNefFile(usePath)  # 'lenient')
-    # print("Parsing time %s for %s" % (time.time() - t0, path))
     print(' %s' % path)
     return entry
 
@@ -283,7 +286,7 @@ def printFile(thisFile):
 # sizeNefList
 #=========================================================================================
 
-def sizeNefList(nefList, whichType=0) -> int:
+def sizeNefList(nefList, whichType=0):
     """List only those items that are of type whichType
 
     :param nefList: list to print
@@ -362,7 +365,7 @@ def printCompareList(nefList, inFile1, inFile2):
 # _filterName
 #=========================================================================================
 
-def _filterName(inName) -> str:
+def _filterName(inName):
     """Remove rogue `n` quotes from the names.
     (This is currently only a test)
 
@@ -380,7 +383,7 @@ def _filterName(inName) -> str:
 # addToList
 #=========================================================================================
 
-def addToList(inList, cItem, nefList) -> list:
+def addToList(inList, cItem, nefList):
     """Append cItem to the compare list
     Currently adds one cItem with a list as the last element
 
@@ -438,15 +441,11 @@ def _compareDicts(dd1, dd2, options):
 # compareLoops
 #=========================================================================================
 
-def compareLoops(loop1: GenericStarParser.Loop,
-                 loop2: GenericStarParser.Loop,
-                 options,
-                 cItem=None,
-                 nefList=None) -> list:
+def compareLoops(loop1, loop2,  options, cItem=None, nefList=None):
     """Compare two Loops
 
-    :param loop1: name of the first Loop object
-    :param loop2: name of the second Loop object
+    :param loop1: first Loop object, of type GenericStarParser.Loop
+    :param loop2: second Loop object, of type GenericStarParser.Loop
     :param options: nameSpace holding the commandLineArguments
     :param cItem: list of str describing differences between nefItems
     :param nefList: input of nefItems
@@ -547,13 +546,6 @@ def compareLoops(loop1: GenericStarParser.Loop,
                     # nothing for the minute as identical already but may want to keep a log
                     pass
 
-        # else:
-        #   cItem3 = copy.deepcopy(cItem)
-        #   cItem3.list.append(LOOP+loop1.name)
-        #   cItem3.list.append(' <rowLength>:  '+str(len(loop1.data))+' != '+str(len(loop2.data)))
-        #   cItem3.inWhich = 3
-        #   nefList.append(nefItem(cItem=cItem3))
-
         #TODO
         # need to add a further test here, could do a diff on the tables which would pick up
         # insertions to the table - the columns would need to be reordered for this to work
@@ -582,16 +574,11 @@ def compareLoops(loop1: GenericStarParser.Loop,
 # compareSaveFrames
 #=========================================================================================
 
-def compareSaveFrames(saveFrame1: GenericStarParser.SaveFrame,
-                      saveFrame2: GenericStarParser.SaveFrame,
-                      options,
-                      cItem=None,
-                      nefList=None) -> list:
-    """
-    Compare two saveFrames, if they have the same name then check their contents
+def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None):
+    """Compare two saveFrames, if they have the same name then check their contents
 
-    :param saveFrame1: name of the first SaveFrame object
-    :param saveFrame2: name of the second SaveFrame object
+    :param saveFrame1: first SaveFrame object, of type GenericStarParser.SaveFrame
+    :param saveFrame2: second SaveFrame object, of type GenericStarParser.SaveFrame
     :param options: nameSpace holding the commandLineArguments
     :param cItem: list of str describing differences between nefItems
     :param nefList: input of nefItems
@@ -660,15 +647,11 @@ def compareSaveFrames(saveFrame1: GenericStarParser.SaveFrame,
 # compareDataBlocks
 #=========================================================================================
 
-def compareDataBlocks(dataBlock1: GenericStarParser.DataBlock,
-                      dataBlock2: GenericStarParser.DataBlock,
-                      options,
-                      cItem=None,
-                      nefList=None) -> list:
+def compareDataBlocks(dataBlock1, dataBlock2, options, cItem=None, nefList=None):
     """Compare two dataBlocks, if they have the same name then check their contents
 
-    :param dataBlock1: name of the first DataBlock object
-    :param dataBlock2: name of the second DataBlock object
+    :param dataBlock1: first DataBlock object, of type GenericStarParser.DataBlock
+    :param dataBlock2: second DataBlock object, of type GenericStarParser.DataBlock
     :param options: nameSpace holding the commandLineArguments
     :param cItem: list of str describing differences between nefItems
     :param nefList: input of nefItems
@@ -714,15 +697,11 @@ def compareDataBlocks(dataBlock1: GenericStarParser.DataBlock,
 # compareDataExtents
 #=========================================================================================
 
-def compareDataExtents(dataExt1: GenericStarParser.DataExtent,
-                       dataExt2: GenericStarParser.DataExtent,
-                       options,
-                       cItem=None,
-                       nefList=None) -> list:
+def compareDataExtents(dataExt1, dataExt2, options, cItem=None, nefList=None):
     """Compare two dataExtents, if they have the same name then check their contents
 
-    :param dataExt1: name of the first DataExtent object
-    :param dataExt2: name of the second DataExtent object
+    :param dataExt1: first DataExtent object, of type GenericStarParser.DataExtent
+    :param dataExt2: second DataExtent object, of type GenericStarParser.DataExtent
     :param options: nameSpace holding the commandLineArguments
     :param cItem: list of str describing differences between nefItems
     :param nefList: input of nefItems
@@ -768,7 +747,7 @@ def compareDataExtents(dataExt1: GenericStarParser.DataExtent,
 # compareFiles
 #=========================================================================================
 
-def compareNefFiles(inFile1, inFile2, options, cItem=None, nefList=None) -> Optional[list]:
+def compareNefFiles(inFile1, inFile2, options, cItem=None, nefList=None):
     """Compare two Nef files and return comparison as a nefItem list
 
     :param inFile1: name of the first file
