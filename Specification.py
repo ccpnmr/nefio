@@ -31,6 +31,9 @@ from . import GenericStarParser
 from . import StarIo
 
 
+INFOPREFIX = 'INFO: '
+
+
 # TODO, This is a DRAFT only - not used and not currently functional.
 # May be upgraded later, for specification-aware NEF I/O
 
@@ -44,7 +47,7 @@ def getCcpnSpecification(filePath):
     return converter.convertToNef()
 
 
-class CifDicConverter:
+class CifDicConverter(object):
     """Converts mmcif .dic file, with program-specific additions datablocks
     into a single NEF data structure, containing:
 
@@ -92,10 +95,18 @@ class CifDicConverter:
         self.skipExamples = skipExamples
         self._category2SaveFrame = {}
 
-    def convertToNef(self):
-        """Convert RCSB .cif file into a nef specification summary file"""
+    def _logging(self, *args):
+        """Log messages as required
+        """
+        try:
+            print('{}{}'.format(INFOPREFIX, ' '.join([str(arg) for arg in args])))
+        except Exception as es:
+            print('{}>>> Error during logging: {}'.format(INFOPREFIX, str(es)))
 
-        # NB this assumes a single datablock.
+    def convertToNef(self):
+        """Convert RCSB .cif file into a nef specification summary file
+        """
+        # NOTE - this assumes a single datablock.
 
         # set up
         rcsbDataBlock = list(self.specification.values())[0]
@@ -108,36 +119,35 @@ class CifDicConverter:
                                             for tag in self.additionalBlocks)
         if None in dataBlocks:
             ii = dataBlocks.index(None)
-            raise ValueError("SPecification file has no data block matciing %s"
+            raise ValueError("Specification file has no data block matching %s"
                              % repr(self.additionalBlocks[ii - 1]))
 
         for dataBlock in dataBlocks:
             toSaveFrames, toLoops, toItems = extractByCategories(dataBlock)
-            print('@~@~ %s SAVEFRAMES' % len(toSaveFrames))
+            self._logging('%s SAVEFRAMES' % len(toSaveFrames))
             for xx in toSaveFrames:
                 self.extractSaveFrameDescription(xx)
-            print('@~@~ saveframes are', list(self.result.keys()))
-            print('@~@~ %s LOOPS' % len(toLoops))
+            self._logging('saveframes are', list(self.result.keys()))
+            self._logging('%s LOOPS' % len(toLoops))
             for xx in toLoops:
                 self.extractLoopDescription(xx)
-            print('@~@~ %s ITEMS' % len(toItems))
+            self._logging('%s ITEMS' % len(toItems))
             for xx in toItems:
                 self.extractItemDescription(xx)
 
         # error check:
         if self.keyTags:
-            print("@~@~ Error. unused keys:")
+            self._logging("Error. unused keys:")
             for tt in self.keyTags:
-                print(tt)
-            print()
+                self._logging(tt)
+            self._logging()
 
         #
         return result
 
     def extractGeneralDataFrame(self, rcsbDataBlock):
-        """extract general data saveframe
+        """Extract general data saveframe
         """
-
         saveFrame = self.result.newSaveFrame('nef_specification', category='nef_specification')
         saveFrame.addItem('version', rcsbDataBlock.get('_dictionary.version'))
 
@@ -160,7 +170,8 @@ class CifDicConverter:
         return saveFrame
 
     def extractSaveFrameDescription(self, inputSaveFrame):
-        """extract saveframe description"""
+        """Extract saveframe description
+        """
         expectedTags = ('_category.description', '_category.id', '_category.mandatory_code',
                         '_category_group.id', '_category_key.name', '_category_examples.case',
                         '_category_examples.detail',)
@@ -186,9 +197,9 @@ class CifDicConverter:
                 example = examples[0]
             saveFrame.addItem('example', example)
         elif examples:
-            print("@~@~ Multiple examples for %s" % name)
+            self._logging("Multiple examples for %s" % name)
             for dd in data:
-                print(dd['_category_examples.detail'], dd['_category_examples.case'])
+                self._logging(dd['_category_examples.detail'], dd['_category_examples.case'])
 
         # Get keytags for later use
         keyNamesData = inputSaveFrame.multiColumnValues(('_category_key.name',))
@@ -199,23 +210,24 @@ class CifDicConverter:
         # Check for untreated tags
         for tag in inputSaveFrame:
             if tag not in expectedTags:
-                print("@~@~ Unexpected item in %s:" % inputSaveFrame['_category.id'], tag,
-                      inputSaveFrame.get(tag))
+                self._logging("Unexpected item in %s:" % inputSaveFrame['_category.id'], tag,
+                              inputSaveFrame.get(tag))
 
     def extractLoopDescription(self, inputSaveFrame):
-        """extract loop description"""
+        """Extract loop description
+        """
         expectedTags = ('_category.description', '_category.id', '_category.parent_category_id',
                         '_category.mandatory_code', '_category_group.id', '_category_key.name',
                         '_category_examples.case', '_category_examples.detail',)
         name = inputSaveFrame['_category.id']
         parentCategory = inputSaveFrame.get('_category.parent_category_id')
         if parentCategory is None:
-            print("@~@~ loop is missing _category.parent_category_id:", name)
+            self._logging("loop is missing _category.parent_category_id:", name)
         else:
             parent = self._category2SaveFrame.get(parentCategory)
             if parent is None:
-                print("@~@~ loop is missing parent saveFrame:", name, parentCategory,
-                      list(self._category2SaveFrame.keys()))
+                self._logging("loop is missing parent saveFrame:", name, parentCategory,
+                              list(self._category2SaveFrame.keys()))
             else:
                 self._category2SaveFrame[name] = parent
 
@@ -229,9 +241,9 @@ class CifDicConverter:
                         if len(examples) == 1:
                             example = examples[0]
                         else:
-                            print("@~@~ Multiple examples for %s" % name)
+                            self._logging("Multiple examples for %s" % name)
                             for dd in data:
-                                print(dd['_category_examples.detail'], dd['_category_examples.case'])
+                                self._logging(dd['_category_examples.detail'], dd['_category_examples.case'])
                 else:
                     example = None
 
@@ -247,22 +259,22 @@ class CifDicConverter:
                         )
 
         # Get keytags for later use
-
         keyNamesData = inputSaveFrame.multiColumnValues(('_category_key.name',))
         for dd in keyNamesData:
             tt = list(dd.values())[0].split('.', 1)
             if len(tt) != 2:
-                print("@~@~ key lacks internal '.'", parentCategory, name, tt)
+                self._logging("key lacks internal '.'", parentCategory, name, tt)
             self.keyTags[(tt[0][1:], tt[1])] = name
 
         # Check for untreated tags
         for tag in inputSaveFrame:
             if tag not in expectedTags:
-                print("@~@~ Unexpected item in %s:" % inputSaveFrame['_category.id'], tag,
-                      inputSaveFrame.get(tag))
+                self._logging("Unexpected item in %s:" % inputSaveFrame['_category.id'], tag,
+                              inputSaveFrame.get(tag))
 
     def extractItemDescription(self, inputSaveFrame):
-        """extract item description"""
+        """Extract item description
+        """
         expectedTags = ('_item_description.description', '_item.name', '_item.mandatory_code',
                         '_item.category_id', '_item_type.code', '_item_examples.case',
                         '_item_examples.detail',)
@@ -289,9 +301,9 @@ class CifDicConverter:
                                                  '_item_examples.case',))
         examples = [x['_item_examples.case'] for x in data]
         if len(examples) > 2:
-            print("@~@~ More than two examples for %s" % name)
+            self._logging("More than two examples for %s" % name)
             # for dd in data:
-            #     print(dd['_item_examples.detail'], dd['_item_examples.case'])
+            #     self._logging(dd['_item_examples.detail'], dd['_item_examples.case'])
         while len(examples) < 2:
             examples.append(None)
 
@@ -309,7 +321,8 @@ class CifDicConverter:
 
 
 def extractByCategories(rcsbDataBlock):
-    """ get saveFrames describing SaveFrames, Loops, and items, respectively"""
+    """Get saveFrames describing SaveFrames, Loops, and items, respectively
+    """
     toSaveFrames = []
     toLoops = []
     toItems = []
@@ -331,7 +344,8 @@ def extractByCategories(rcsbDataBlock):
 
 
 def transferLoop(genericContainer, saveFrame, inputTags):
-    """transfer _category.tag_x, ... to loop named category with tags tag_x etc."""
+    """Transfer _category.tag_x, ... to loop named category with tags tag_x etc.
+    """
     set1 = set()
     columns = []
     for tag in inputTags:
@@ -341,6 +355,7 @@ def transferLoop(genericContainer, saveFrame, inputTags):
             set1.add(tt[0][1:])
         else:
             raise ValueError("Tag %s is not of form _xyz.abc")
+
     if len(set1) == 1:
         category = set1.pop()
         data = genericContainer.multiColumnValues(inputTags)
@@ -348,10 +363,12 @@ def transferLoop(genericContainer, saveFrame, inputTags):
             loop = saveFrame.newLoop(category, columns=columns)
             for row in data:
                 loop.newRow(list(row.get(tag) for tag in inputTags))
+
+            return loop
     else:
-        raise ValueError("tags have more than on profix: %s" % sorted((set1)))
+        raise ValueError("tags have more than on prefix: %s" % sorted((set1)))
     #
-    return loop
+    return None
 
 
 if __name__ == '__main__':
@@ -362,6 +379,8 @@ if __name__ == '__main__':
     else:
         infile = sys.argv[1]
 
-    converter = CifDicConverter(open(infile).read())
-    converter.convertToNef()
-    print(converter.result.toString())
+        with open(infile) as fp:
+            data = fp.read()
+        converter = CifDicConverter(data)
+        converter.convertToNef()
+        print(converter.result.toString())
