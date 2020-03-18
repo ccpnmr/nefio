@@ -4,7 +4,7 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
 __credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
@@ -14,8 +14,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2019-12-13 19:01:25 +0000 (Fri, December 13, 2019) $"
-__version__ = "$Revision: 3.0.0 $"
+__dateModified__ = "$dateModified: 2020-03-18 18:28:52 +0000 (Wed, March 18, 2020) $"
+__version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -224,6 +224,8 @@ class CifDicConverter(object):
         if parentCategory is None:
             self._logging("loop is missing _category.parent_category_id:", name)
         else:
+
+            # NOTE:ED now need to search the previous categories for the container
             parent = self._category2SaveFrame.get(parentCategory)
             if parent is None:
                 self._logging("loop is missing parent saveFrame:", name, parentCategory,
@@ -287,7 +289,7 @@ class CifDicConverter(object):
             del self.keyTags[(category, name)]
         saveFrame = self._category2SaveFrame.get(category)
         if saveFrame is None:
-            raise ValueError("SAvFrame named %s not found in list: %s"
+            raise ValueError("SaveFrame named %s not found in list: %s"
                              % (category, list(self._category2SaveFrame.keys())))
         if saveFrame.name == 'nef_saveframe_' + category:
             # item lives in a saveframe, not a loop

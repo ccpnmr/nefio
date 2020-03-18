@@ -215,8 +215,17 @@ from collections import OrderedDict
 
 def import_parents(level=1):
     global __package__
-    file = Path(__file__).resolve()
-    parent, top = file.parent, file.parents[level]
+
+    import sys
+    from os import path
+    import importlib
+
+    # pathlib does all this a lot nicer, but don't think it's in python2.7
+    top = parent = path.dirname(path.abspath(__file__))
+    package = []
+    for t in range(level):
+        package.insert(0, os.path.basename(top))
+        top = path.dirname(top)
 
     sys.path.append(str(top))
     try:
@@ -224,15 +233,12 @@ def import_parents(level=1):
     except ValueError:  # already removed
         pass
 
-    __package__ = '.'.join(parent.parts[len(top.parts):])
-    importlib.import_module(__package__)  # won't be needed after that
+    __package__ = str('.'.join(package))
+    importlib.import_module(__package__)
 
 
 if __name__ == '__main__' and __package__ is None:
-    import importlib
-    from pathlib import Path
-
-    import_parents()
+    import_parents(level=1)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -1103,7 +1109,7 @@ if __name__ == '__main__':
     validNef = NefImporter(errorLogging=el.NEF_STANDARD)
 
     # oad the validation dictionary
-    infile = 'mmcif_nef.dic'
+    infile = 'mmcif_nef_v1_1.dic'
     filePath = os.path.join(os.getcwd(), 'NEF', 'specification', infile)
     if not os.path.exists(filePath):
         raise RuntimeError('Error: %s not found' % infile)
