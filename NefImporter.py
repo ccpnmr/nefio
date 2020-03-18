@@ -1108,8 +1108,10 @@ if __name__ == '__main__':
 
     validNef = NefImporter(errorLogging=el.NEF_STANDARD)
 
-    # oad the validation dictionary
-    infile = 'mmcif_nef_v1_1.dic'
+    # load the validation dictionary - 1.1 DOES NOT WORK WITHOUT parent_category_id
+    infile = 'mmcif_nef.dic'
+    # infile = 'mmcif_nef_v1_1.dic'
+
     filePath = os.path.join(os.getcwd(), 'NEF', 'specification', infile)
     if not os.path.exists(filePath):
         raise RuntimeError('Error: %s not found' % infile)
