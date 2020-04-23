@@ -475,27 +475,7 @@ NEF_CATEGORIES_REMOVEPREFIX = {'nef_distance_restraint'         : 'distance_rest
                                'nef_peak'                       : 'peak',
                                'nef_dihedral_restraint'         : 'dihedral_restraint'}
 
-NEF_CATEGORIES_INSERTPREFIX = {'distance_restraint'         : 'nef_distance_restraint',
-                               'molecular_system'           : 'nef_molecular_system',
-                               'covalent_links'             : 'nef_covalent_links',
-                               'peak_restraint_links'       : 'nef_peak_restraint_links',
-                               'run_history'                : 'nef_run_history',
-                               'nmr_meta_data'              : 'nef_nmr_meta_data',
-                               'rdc_restraint_list'         : 'nef_rdc_restraint_list',
-                               'peak_restraint_link'        : 'nef_peak_restraint_link',
-                               'nmr_spectrum'               : 'nef_nmr_spectrum',
-                               'spectrum_dimension'         : 'nef_spectrum_dimension',
-                               'chemical_shift_list'        : 'nef_chemical_shift_list',
-                               'sequence'                   : 'nef_sequence',
-                               'program_script'             : 'nef_program_script',
-                               'related_entries'            : 'nef_related_entries',
-                               'distance_restraint_list'    : 'nef_distance_restraint_list',
-                               'rdc_restraint'              : 'nef_rdc_restraint',
-                               'chemical_shift'             : 'nef_chemical_shift',
-                               'spectrum_dimension_transfer': 'nef_spectrum_dimension_transfer',
-                               'dihedral_restraint_list'    : 'nef_dihedral_restraint_list',
-                               'peak'                       : 'nef_peak',
-                               'dihedral_restraint'         : 'nef_dihedral_restraint'}
+NEF_CATEGORIES_INSERTPREFIX = dict((val, key) for key, val in NEF_CATEGORIES_REMOVEPREFIX.items())
 
 NEF_RETURNALL = 'all'
 NEF_RETURNNEF = 'nef_'
@@ -898,6 +878,27 @@ class NefImporter(el.ErrorLog):
         # prefixes are still used in the saveFrames bit not seen in general use
         if isinstance(newPrefix, bool):
             self._hidePrefix = newPrefix
+
+    def getName(self):
+        return self._nefDict.name if self._nefDict else ''
+
+    def _attachReader(self, reader):
+        """attach a reader method
+        """
+        self._reader = reader
+
+    def _importNef(self, project, *args, **kwds):
+        if hasattr(self, '_reader'):
+            return self._reader(project, *args, **kwds)
+
+    def _attachVerifier(self, verifier):
+        """attach a veify method
+        """
+        self._verifier = verifier
+
+    def _verifyNef(self, project, *args, **kwds):
+        if hasattr(self, '_verifier'):
+            return self._verifier(project, *args, **kwds)
 
 
 class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
