@@ -132,8 +132,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-01-14 11:49:36 +0000 (Tue, January 14, 2020) $"
-__version__ = "$Revision: 3.0.0 $"
+__dateModified__ = "$dateModified: 2020-04-24 11:21:21 +0100 (Fri, April 24, 2020) $"
+__version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -923,8 +923,8 @@ class Test_Compare_Files(unittest.TestCase):
         options = parser.parse_args([])
 
         # set the two files to compare
-        inFile1 = str(os.path.join('.', 'nef', 'testdata', 'Commented_Example.nef'))
-        inFile2 = str(os.path.join('.', 'nef', 'testdata', 'Commented_Example_Change.nef'))
+        inFile1 = os.path.join('.', 'nef', 'testdata', 'Commented_Example.nef')
+        inFile2 = os.path.join('.', 'nef', 'testdata', 'Commented_Example_Change.nef')
 
         print('\nTEST COMPARISON')
         print('   file1 = ' + inFile1)
@@ -944,9 +944,9 @@ class Test_Compare_Files(unittest.TestCase):
         options.createDirs = True
         options.overwriteExisting = False
 
-        inDir1 = os.path.join('testdata', 'testinfolder1')
-        inDir2 = os.path.join('testdata', 'testinfolder2')
-        outDir = os.path.join('testdata', 'testoutfolder')
+        inDir1 = os.path.join('.', 'nef', 'testdata', 'testinfolder1')
+        inDir2 = os.path.join('.', 'nef', 'testdata', 'testinfolder2')
+        outDir = os.path.join('.', 'nef', 'testdata', 'testoutfolder')
 
         batchCompareNefFiles(inDir1, inDir2, outDir, options)
 
