@@ -132,7 +132,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-24 11:21:21 +0100 (Fri, April 24, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-24 18:09:44 +0100 (Fri, April 24, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -154,17 +154,8 @@ import sys
 
 def import_parents(level=1):
     global __package__
-
-    import sys
-    from os import path
-    import importlib
-
-    # pathlib does all this a lot nicer, but don't think it's in python2.7
-    top = parent = path.dirname(path.abspath(__file__))
-    package = []
-    for t in range(level):
-        package.insert(0, os.path.basename(top))
-        top = path.dirname(top)
+    file = Path(__file__).resolve()
+    parent, top = file.parent, file.parents[level]
 
     sys.path.append(str(top))
     try:
@@ -172,12 +163,16 @@ def import_parents(level=1):
     except ValueError:  # already removed
         pass
 
-    __package__ = str('.'.join(package))
-    importlib.import_module(__package__)
+    __package__ = '.'.join(parent.parts[len(top.parts):])
+    importlib.import_module(__package__)  # won't be needed after that
 
 
 if __name__ == '__main__' and __package__ is None:
-    import_parents(level=1)
+    import importlib
+    from pathlib import Path
+
+
+    import_parents()
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 from . import GenericStarParser, StarIo
