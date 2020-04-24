@@ -143,7 +143,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-24 20:47:56 +0100 (Fri, April 24, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-24 20:57:03 +0100 (Fri, April 24, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -543,8 +543,9 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     addToList(inRight, cItem=cItem2, nefList=nefList)
 
     if loop1.data and loop2.data:
-        rowRange = min(len(loop1.data), len(loop2.data))
+        rowRange = max(len(loop1.data), len(loop2.data))
 
+        # NOTE:ED - not sure whether to add this
         if len(loop1.data) != len(loop2.data):  # simple compare, same length tables - should use longest
             cItem3 = copy.deepcopy(cItem)
             cItem3.list.append(LOOP + loop1.name)
@@ -557,8 +558,8 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         for compName in dSet:
             for rowIndex in range(rowRange):
 
-                loopValue1 = loop1.data[rowIndex][compName]
-                loopValue2 = loop2.data[rowIndex][compName]
+                loopValue1 = loop1.data[rowIndex][compName] if rowIndex < len(loop1.data) else None
+                loopValue2 = loop2.data[rowIndex][compName] if rowIndex < len(loop2.data) else None
 
                 addDiffItem = False
 
@@ -614,6 +615,7 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         # also check for Mandatory items
 
     else:
+        # NOTE:ED - not sure whether to add this
         # can't compare non-existent loopdata
         if loop1.data is None:
             cItem3 = copy.deepcopy(cItem)
