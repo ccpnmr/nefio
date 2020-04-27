@@ -49,6 +49,12 @@ Command Line Usage:
         --same                  output similarities between Nef files
                                 default is differences
 
+        -a, --almostequal       Consider float/complex numbers to be equal if within the
+                                relative tolerance
+
+        -p, --places            Specify the number of decimal places for the relative
+                                tolerance
+
     --verify                Verify Nef files
 
                             Can be used with switches: -f, -d
@@ -143,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-27 14:35:16 +0100 (Mon, April 27, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-27 15:41:38 +0100 (Mon, April 27, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -157,6 +163,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import os
 import copy
 import sys
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # this is a fix to get the import to work when running as a standalone
@@ -199,6 +206,10 @@ from os import listdir
 from os.path import isfile, join
 from enum import Enum
 from collections import Iterable
+from numbers import Number
+from math import isclose
+from cmath import isclose as cisclose
+
 
 try:
     # Python 3
@@ -276,8 +287,8 @@ def defineArguments():
     parser.add_argument('--same', dest='identical', action='store_true', default=False,
                         help='Output similarities between Nef files; default is differences')
 
-    parser.add_argument('-a', '--almostequal', dest='almostEqual', action='store_true', default=False,
-                        help='Consider float values as equal if within tolerance')
+    parser.add_argument('-a', '--almostequal', dest='almostEqual', action='store_true', default=True,
+                        help='Consider float/complex values as equal if within tolerance')
     parser.add_argument('-p', '--places', dest='places', nargs=1, default=10, type=int, choices=range(1, 16),
                         help='Specify number of decimal places for relative tolerance')
 
@@ -297,6 +308,7 @@ def defineArguments():
 class compareItem(object):
     """Holds the details of a compared loop/saveFrame item at a particular row/column (if required)
     """
+
     def __init__(self, attribute=None, row=None, column=None, thisValue=None, compareValue=None):
         self.attribute = attribute
         self.row = row
@@ -497,87 +509,86 @@ def addToList(inList, cItem, nefList):
 
 
 #=========================================================================================
-# _compareDicts
+# _compareObjects
 #=========================================================================================
 
-def _compareDicts(dd1, dd2, options):
-    """Compare the contents of two dictionaries
-
-    :param dd1: dict containing keys from first nef file
-    :param dd2:  dict containing keys from second nef file
-    :param options: nameSpace holding the commandLineArguments
-    :return:
-    """
-    # d1Keys = {(k.lower() if options.ignoreCase else k, k) for k in dd1.keys()}
-    # d2Keys = {(k.lower() if options.ignoreCase else k, k) for k in dd2.keys()}
-
-    if dd1 == dd2:
-        return True
-
-    if options.ignoreCase:
-        # simple compare - make lowercase dictionaries and check equivalent
-        # not perfect as may have mix of upper/lowercase keys that are the same
-        try:
-            lowerDd1 = literal_eval(str(dd1).lower())
-            lowerDd2 = literal_eval(str(dd2).lower())
-
-            if len(dd1.keys()) != len(lowerDd1.keys()):
-                return False
-            if len(dd2.keys()) != len(lowerDd2.keys()):
-                return False
-
-            if lowerDd1 == lowerDd2:
-                return True
-
-        except (SyntaxError, ValueError, AssertionError):
-            # trap errors generated from a bad literal_eval
-            return False
-
-    return False
-
-
-def _compareDict(d1, d2, options):
-    """Compare the keys in two dictionaries - allow testing of almost equal and lowercase strings
-    """
-    if len(d1) != len(d2):
-        return False
-
-    # list through the keys of the first dict
-    for k in d1:
-        if k not in d2:
-            return False
-
-        v1 = d1[k]
-        v2 = d2[k]
-        if isinstance(v1, dict) and isinstance(v2, dict):
-            compare = _compareDict(v1, v2, options)
-            if not compare:
-                return False
-        else:
-            if type(v1) == type(v2):
-                # compare values if same type
-                if isinstance(v1, Number):
-                    if not isclose(v1, v2, rel_tol=options.relTol):
-                        return False
-                elif isinstance(v1, str):
-                    if options.ignoreCase:
-                        if v1.lower() != v2.lower:
-                            return False
-                    elif v1 != v2:
-                        return False
-                elif isinstance(v1, Iterable):
-                    if len(v1) != len(v2):
-                        return False
-                    for it1, it2 in zip(v1, v2):
-                        # now need to compare lists
-                        if type(it1) != type(it2):
-                            return False
-
-            else:
-                return False
-
-    return True
-
+# def _compareDicts(dd1, dd2, options):
+#     """Compare the contents of two dictionaries
+#
+#     :param dd1: dict containing keys from first nef file
+#     :param dd2:  dict containing keys from second nef file
+#     :param options: nameSpace holding the commandLineArguments
+#     :return:
+#     """
+#     # d1Keys = {(k.lower() if options.ignoreCase else k, k) for k in dd1.keys()}
+#     # d2Keys = {(k.lower() if options.ignoreCase else k, k) for k in dd2.keys()}
+#
+#     if dd1 == dd2:
+#         return True
+#
+#     if options.ignoreCase:
+#         # simple compare - make lowercase dictionaries and check equivalent
+#         # not perfect as may have mix of upper/lowercase keys that are the same
+#         try:
+#             lowerDd1 = literal_eval(str(dd1).lower())
+#             lowerDd2 = literal_eval(str(dd2).lower())
+#
+#             if len(dd1.keys()) != len(lowerDd1.keys()):
+#                 return False
+#             if len(dd2.keys()) != len(lowerDd2.keys()):
+#                 return False
+#
+#             if lowerDd1 == lowerDd2:
+#                 return True
+#
+#         except (SyntaxError, ValueError, AssertionError):
+#             # trap errors generated from a bad literal_eval
+#             return False
+#
+#     return False
+#
+#
+# def _compareDict(d1, d2, options):
+#     """Compare the keys in two dictionaries - allow testing of almost equal and lowercase strings
+#     """
+#     if len(d1) != len(d2):
+#         return False
+#
+#     # list through the keys of the first dict
+#     for k in d1:
+#         if k not in d2:
+#             return False
+#
+#         v1 = d1[k]
+#         v2 = d2[k]
+#         if isinstance(v1, dict) and isinstance(v2, dict):
+#             compare = _compareDict(v1, v2, options)
+#             if not compare:
+#                 return False
+#         else:
+#             if type(v1) == type(v2):
+#                 # compare values if same type
+#                 if isinstance(v1, Number):
+#                     if not isclose(v1, v2, rel_tol=options.relTol):
+#                         return False
+#                 elif isinstance(v1, str):
+#                     if options.ignoreCase:
+#                         if v1.lower() != v2.lower:
+#                             return False
+#                     elif v1 != v2:
+#                         return False
+#                 elif isinstance(v1, Iterable):
+#                     if len(v1) != len(v2):
+#                         return False
+#                     for it1, it2 in zip(v1, v2):
+#                         # now need to compare lists
+#                         if type(it1) != type(it2):
+#                             return False
+#
+#             else:
+#                 return False
+#
+#     return True
 
 # def _isClose(a, b, prec):
 #     n1 = f'{a:.{prec}f}'
@@ -585,60 +596,44 @@ def _compareDict(d1, d2, options):
 #     print ('      isClose  >>', n1, n2)
 #     return f'{a:.{prec}f}' == f'{b:.{prec}f}'
 
-
-from numbers import Number
-from math import isclose
-from cmath import isclose as cisclose
-
-
 def _compareObjects(obj1, obj2, options):
-
-    # if type(obj1) != type(obj2):
-    #     if type(obj1) != Number and type(obj2) != Number:
-    #         #Different types - immediate fail
-    #         print('  False type >>', obj1, obj2, type(obj1), type(obj2), isinstance(obj1, Number), isinstance(obj2, Number))
-    #         return False
+    """Compare the values of two objects
+    Objects may be nested objects.
+    Dicts are compared by keys
+    Strings are considerd equal if lowercase values are the same of options.ignoreCase = True
+    Floats/complex are considered equal if values are within the a relative tolerance as defined by
+    a number of decimal places
+    """
 
     if isinstance(obj1, Iterable) and isinstance(obj2, Iterable):
-        # if len(obj1) > 1 and len(obj2) > 1:
-        # # iterate through both list - if not single elements
-
         if type(obj1) != type(obj2):
-            print('  False type >>', obj1, obj2, type(obj1), type(obj2))
+            # print('  False type >>', obj1, obj2, type(obj1), type(obj2))
             return False
 
         if len(obj1) != len(obj2):
-            print('  False len >>', obj1, obj2)
+            # print('  False len >>', obj1, obj2)
             return False
 
         # if dicts then compare keys/values
-        if isinstance(obj1, dict):      # and isinstance(obj2, dict):       # shouldn't need to test both
+        if isinstance(obj1, dict):  # and isinstance(obj2, dict):       # shouldn't need to test both
             # compare dict values
             for d1 in obj1:
                 if d1 in obj2:
                     compare = _compareObjects(obj1[d1], obj2[d1], options)
                     if not compare:
-                        print('  False bad dict item >>', obj1, obj2)
+                        # print('  False bad dict item >>', obj1, obj2)
                         return False
                 else:
-                    print('  False bad dict key >>', obj1, obj2)
+                    # print('  False bad dict key >>', obj1, obj2)
                     return False
 
-        # elif isinstance(obj1, set):      # and isinstance(obj2, set):
-        #     # compare set values
-        #     for s1, s2 in zip(obj1, obj2):
-        #         compare = _compareObjects(s1, s2, options)
-        #         if not compare:
-        #             print('  False bad set item >>', obj1, obj2)
-        #             return False
-
-        elif isinstance(obj1, str):      # and isinstance(obj2, str):
+        elif isinstance(obj1, str):  # and isinstance(obj2, str):
             if options.ignoreCase:
                 if obj1.lower() != obj2.lower():
-                    print('  False string case >>', obj1, obj2)
+                    # print('  False string case >>', obj1, obj2)
                     return False
             elif obj1 != obj2:
-                print('  False string >>', obj1, obj2)
+                # print('  False string >>', obj1, obj2)
                 return False
 
         else:
@@ -646,63 +641,25 @@ def _compareObjects(obj1, obj2, options):
             for s1, s2 in zip(obj1, obj2):
                 compare = _compareObjects(s1, s2, options)
                 if not compare:
-                    print('  False iterable item >>', obj1, obj2)
+                    # print('  False iterable item >>', obj1, obj2)
                     return False
 
     else:
-        # if type(obj1) != type(obj2):
-        #     if type(obj1) != Number and type(obj2) != Number:
-        #         #Different types - immediate fail
-        #         print('  False type >>', obj1, obj2, type(obj1), type(obj2), isinstance(obj1, Number), isinstance(obj2, Number))
-        #         return False
-
         if isinstance(obj1, (int, float)) and isinstance(obj2, (int, float)):
             if not isclose(obj1, obj2, rel_tol=pow(10, -options.places)):
-                print('  False float tolerance >>', obj1, obj2)
+                # print('  False float tolerance >>', obj1, obj2)
                 return False
 
         elif isinstance(obj1, complex) and isinstance(obj2, complex):
             # not sure how these would appear
             if not cisclose(obj1, obj2, rel_tol=pow(10, -options.places)):
-                print('  False complex tolerance >>', obj1, obj2)
+                # print('  False complex tolerance >>', obj1, obj2)
                 return False
 
         elif obj1 != obj2:
-            print('  False >>', obj1, obj2)
+            # print('  False unequal objects >>', obj1, obj2)
             return False
 
-    print('  TRUE >>', obj1, obj2)
-    return True
-
-
-def dictsAlmostEqual(dict1, dict2, rel_tol=1e-12):
-    """
-    If dictionary value is a number, then check that the numbers are almost equal, otherwise check if values are exactly equal
-    Note: does not currently try converting strings to digits and comparing them. Does not care about ordering of keys in dictionaries
-    Just returns true or false
-    """
-    if len(dict1) != len(dict2):
-        return False
-    # Loop through each item in the first dict and compare it to the second dict
-    for key, item in dict1.items():
-        # If it is a nested dictionary, need to call the function again
-        if isinstance(item, dict):
-            # If the nested dictionaries are not almost equal, return False
-            if not dictsAlmostEqual(dict1[key], dict2[key], rel_tol=rel_tol):
-                return False
-        # If it's not a dictionary, then continue comparing
-        # Put in else statement or else the nested dictionary will get compared twice and
-        # On the second time will check for exactly equal and will fail
-        else:
-            # If the value is a number, check if they are approximately equal
-            if isinstance(item, Number):
-                # if not abs(dict1[key] - dict2[key]) <= rel_tol:
-                # https://stackoverflow.com/questions/5595425/what-is-the-best-way-to-compare-floats-for-almost-equality-in-python
-                if not isclose(dict1[key], dict2[key], rel_tol=rel_tol):
-                    return False
-            else:
-                if not (dict1[key] == dict2[key]):
-                    return False
     return True
 
 
@@ -766,52 +723,54 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
                 loopValue1 = loop1.data[rowIndex][compName] if rowIndex < len(loop1.data) else None
                 loopValue2 = loop2.data[rowIndex][compName] if rowIndex < len(loop2.data) else None
 
-                addDiffItem = False
+                # if _compareObjects(loopValue1, loopValue2, options) == options.identical:
+                #     _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
 
-                if not ((loopValue1 == loopValue2) or
-                        ((str(loopValue1).lower() == str(loopValue2).lower()) and options.ignoreCase)):
-
-                    # The value_strings are different
-                    # Check to see if they are dictionaries
-                    # and compare contents
-
-                    try:
-                        # these 2 lines will crash as a ValueError: malformed string if cannot
-                        # be evaluated as:
-                        #   - strings, numbers, tuples, lists, dicts, booleans, and None.
-
-                        loopValue1 = literal_eval(loopValue1)
-                        loopValue2 = literal_eval(loopValue2)
-
-                        if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
-                            if not _compareDicts(loopValue1, loopValue2, options):
-                                # _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
-                                addDiffItem = True
-                            else:
-
-                                # nothing for the minute as identical already but may want to keep a log
-                                pass
-
-                        else:
-                            # not both dicts so compare is applicable
-                            # _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
-                            addDiffItem = True
-
-                    except (SyntaxError, ValueError, AssertionError):
-
-                        # loopvalues cannot be converted to proper values
-                        # need to check that comments are being loaded correctly
-                        # _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
-                        addDiffItem = True
-
-                else:
-
-                    # nothing for the minute as identical already but may want to keep a log
-                    pass
-
-                if options.identical != addDiffItem:
-                    _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
-
+                # addDiffItem = False
+                #
+                # if not ((loopValue1 == loopValue2) or
+                #         ((str(loopValue1).lower() == str(loopValue2).lower()) and options.ignoreCase)):
+                #
+                #     # The value_strings are different
+                #     # Check to see if they are dictionaries
+                #     # and compare contents
+                #
+                #     try:
+                #         # these 2 lines will crash as a ValueError: malformed string if cannot
+                #         # be evaluated as:
+                #         #   - strings, numbers, tuples, lists, dicts, booleans, and None.
+                #
+                #         loopValue1 = literal_eval(loopValue1)
+                #         loopValue2 = literal_eval(loopValue2)
+                #
+                #         if isinstance(loopValue1, dict) and isinstance(loopValue2, dict):
+                #             if not _compareDicts(loopValue1, loopValue2, options):
+                #                 # _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
+                #                 addDiffItem = True
+                #             else:
+                #
+                #                 # nothing for the minute as identical already but may want to keep a log
+                #                 pass
+                #
+                #         else:
+                #             # not both dicts so compare is applicable
+                #             # _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
+                #             addDiffItem = True
+                #
+                #     except (SyntaxError, ValueError, AssertionError):
+                #
+                #         # loopvalues cannot be converted to proper values
+                #         # need to check that comments are being loaded correctly
+                #         # _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
+                #         addDiffItem = True
+                #
+                # else:
+                #
+                #     # nothing for the minute as identical already but may want to keep a log
+                #     pass
+                #
+                # if options.identical != addDiffItem:
+                #     _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
 
         #TODO
         # need to add a further test here, could do a diff on the tables which would pick up
@@ -883,10 +842,10 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
                                        + str(loopValue2))
 
                 itm.compareList.append(compareItem(attribute=compName,
-                                                 row=rowIndex,
-                                                 column=compName,
-                                                 thisValue=loopValue1,
-                                                 compareValue=loopValue2))
+                                                   row=rowIndex,
+                                                   column=compName,
+                                                   thisValue=loopValue1,
+                                                   compareValue=loopValue2))
                 break
 
     else:
@@ -901,10 +860,10 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
         cItem3.inWhich = inWhich
 
         cItem3.compareList = [compareItem(attribute=compName,
-                                         row=rowIndex,
-                                         column=compName,
-                                         thisValue=loopValue1,
-                                         compareValue=loopValue2)]
+                                          row=rowIndex,
+                                          column=compName,
+                                          thisValue=loopValue1,
+                                          compareValue=loopValue2)]
         cItem3._identical = options.identical
 
         # nefList.append(nefItem(cItem=cItem3))
@@ -977,7 +936,7 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
 
         symbol = ' == ' if options.identical else ' != '
 
-        if (saveFrame1[compName] == saveFrame2[compName]) == options.identical:
+        if _compareObjects(saveFrame1[compName], saveFrame2[compName], options) == options.identical:
             cItem3 = copy.deepcopy(cItem)
             cItem3.strList.append(SAVEFRAME + saveFrame2.name)
             cItem3.objList.append(saveFrame2)
@@ -1410,6 +1369,12 @@ Command Line Usage:
 
         --same                  output similarities between Nef files
                                 default is differences
+
+        -a, --almostequal       Consider float/complex numbers to be equal if within the
+                                relative tolerance
+                                
+        -p, --places            Specify the number of decimal places for the relative
+                                tolerance
 
     --verify                Verify Nef files
 
