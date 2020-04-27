@@ -143,7 +143,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-27 14:25:31 +0100 (Mon, April 27, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-27 14:35:16 +0100 (Mon, April 27, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -661,7 +661,8 @@ def _compareObjects(obj1, obj2, options):
                 print('  False float tolerance >>', obj1, obj2)
                 return False
 
-        if isinstance(obj1, complex) and isinstance(obj2, complex):
+        elif isinstance(obj1, complex) and isinstance(obj2, complex):
+            # not sure how these would appear
             if not cisclose(obj1, obj2, rel_tol=pow(10, -options.places)):
                 print('  False complex tolerance >>', obj1, obj2)
                 return False
