@@ -143,7 +143,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-24 20:57:03 +0100 (Fri, April 24, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-27 14:25:31 +0100 (Mon, April 27, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -157,7 +157,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import os
 import copy
 import sys
-
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # this is a fix to get the import to work when running as a standalone
@@ -191,15 +190,15 @@ if __name__ == '__main__' and __package__ is None:
     import_parents(level=1)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import re
+import unittest
 from . import GenericStarParser, StarIo
 from .SafeOpen import safeOpen
-import unittest
 from ast import literal_eval
 from os import listdir
 from os.path import isfile, join
-import re
 from enum import Enum
-
+from collections import Iterable
 
 try:
     # Python 3
@@ -218,10 +217,8 @@ EXCLUSIVEGROUP = ['compare', 'verify']
 
 
 class NEFOPTIONS(Enum):
-    COMPARE = 'compare'
-    VERIFY = 'verify'
-    JUMP = 'jump'
-    SPOON = 'spoon'
+    COMPARE = EXCLUSIVEGROUP[0]
+    VERIFY = EXCLUSIVEGROUP[1]
 
 
 def showMessage(msg, *args, **kwds):
@@ -277,7 +274,12 @@ def defineArguments():
                         help='Ignore case when comparing items')
 
     parser.add_argument('--same', dest='identical', action='store_true', default=False,
-                        help='output similarities between Nef files; default is differences')
+                        help='Output similarities between Nef files; default is differences')
+
+    parser.add_argument('-a', '--almostequal', dest='almostEqual', action='store_true', default=False,
+                        help='Consider float values as equal if within tolerance')
+    parser.add_argument('-p', '--places', dest='places', nargs=1, default=10, type=int, choices=range(1, 16),
+                        help='Specify number of decimal places for relative tolerance')
 
     group = parser.add_mutually_exclusive_group()
     for nefItem in NEFOPTIONS:
@@ -286,6 +288,21 @@ def defineArguments():
     group.set_defaults(nefOption=NEFOPTIONS.COMPARE)
 
     return parser
+
+
+#=========================================================================================
+# compareItem
+#=========================================================================================
+
+class compareItem(object):
+    """Holds the details of a compared loop/saveFrame item at a particular row/column (if required)
+    """
+    def __init__(self, attribute=None, row=None, column=None, thisValue=None, compareValue=None):
+        self.attribute = attribute
+        self.row = row
+        self.column = column
+        self.thisValue = thisValue
+        self.compareValue = compareValue
 
 
 #=========================================================================================
@@ -301,10 +318,17 @@ class nefItem(object):
 
     def __init__(self, cItem=None):
         self.inWhich = None
-        self.list = []
+        self.strList = []
+        self.objList = []
+        self.compareList = []
+
+        self.thisObj = None
+        self.compareObj = None
+
+        self._identical = False
 
         if cItem is not None:
-            self.list = copy.deepcopy(cItem.list)
+            self.strList = copy.deepcopy(cItem.strList)
             self.inWhich = cItem.inWhich
 
 
@@ -383,12 +407,12 @@ def printWhichList(nefList, whichType=0):
     for cCount, cc in enumerate(nefList):
         if cc.inWhich == whichType:
 
-            if isinstance(cc.list[-1], str):
-                printOutput('  ' + ':'.join(cc.list[:]))
+            if isinstance(cc.strList[-1], str):
+                printOutput('  ' + ':'.join(cc.strList[:]))
             else:
-                outStr = '  ' + ':'.join(cc.list[:-1]) + ': contains --> '
+                outStr = '  ' + ':'.join(cc.strList[:-1]) + ': contains --> '
                 lineTab = '\n' + ' ' * len(outStr)
-                printOutput(outStr + lineTab.join(cc.list[-1]))
+                printOutput(outStr + lineTab.join(cc.strList[-1]))
 
 
 #=========================================================================================
@@ -464,8 +488,10 @@ def addToList(inList, cItem, nefList):
     """
     if len(inList) > 0:
         cItem3 = copy.deepcopy(cItem)
-        cItem3.list.append(list(inList))  # nest the list within the cItem
-        nefList.append(nefItem(cItem=cItem3))
+        cItem3.strList.append(list(inList))  # nest the list within the cItem
+
+        # nefList.append(nefItem(cItem=cItem3))
+        nefList.append(cItem3)
 
     return nefList
 
@@ -482,6 +508,9 @@ def _compareDicts(dd1, dd2, options):
     :param options: nameSpace holding the commandLineArguments
     :return:
     """
+    # d1Keys = {(k.lower() if options.ignoreCase else k, k) for k in dd1.keys()}
+    # d2Keys = {(k.lower() if options.ignoreCase else k, k) for k in dd2.keys()}
+
     if dd1 == dd2:
         return True
 
@@ -505,6 +534,175 @@ def _compareDicts(dd1, dd2, options):
             return False
 
     return False
+
+
+def _compareDict(d1, d2, options):
+    """Compare the keys in two dictionaries - allow testing of almost equal and lowercase strings
+    """
+    if len(d1) != len(d2):
+        return False
+
+    # list through the keys of the first dict
+    for k in d1:
+        if k not in d2:
+            return False
+
+        v1 = d1[k]
+        v2 = d2[k]
+        if isinstance(v1, dict) and isinstance(v2, dict):
+            compare = _compareDict(v1, v2, options)
+            if not compare:
+                return False
+        else:
+            if type(v1) == type(v2):
+                # compare values if same type
+                if isinstance(v1, Number):
+                    if not isclose(v1, v2, rel_tol=options.relTol):
+                        return False
+                elif isinstance(v1, str):
+                    if options.ignoreCase:
+                        if v1.lower() != v2.lower:
+                            return False
+                    elif v1 != v2:
+                        return False
+                elif isinstance(v1, Iterable):
+                    if len(v1) != len(v2):
+                        return False
+                    for it1, it2 in zip(v1, v2):
+                        # now need to compare lists
+                        if type(it1) != type(it2):
+                            return False
+
+            else:
+                return False
+
+    return True
+
+
+# def _isClose(a, b, prec):
+#     n1 = f'{a:.{prec}f}'
+#     n2 = f'{b:.{prec}f}'
+#     print ('      isClose  >>', n1, n2)
+#     return f'{a:.{prec}f}' == f'{b:.{prec}f}'
+
+
+from numbers import Number
+from math import isclose
+from cmath import isclose as cisclose
+
+
+def _compareObjects(obj1, obj2, options):
+
+    # if type(obj1) != type(obj2):
+    #     if type(obj1) != Number and type(obj2) != Number:
+    #         #Different types - immediate fail
+    #         print('  False type >>', obj1, obj2, type(obj1), type(obj2), isinstance(obj1, Number), isinstance(obj2, Number))
+    #         return False
+
+    if isinstance(obj1, Iterable) and isinstance(obj2, Iterable):
+        # if len(obj1) > 1 and len(obj2) > 1:
+        # # iterate through both list - if not single elements
+
+        if type(obj1) != type(obj2):
+            print('  False type >>', obj1, obj2, type(obj1), type(obj2))
+            return False
+
+        if len(obj1) != len(obj2):
+            print('  False len >>', obj1, obj2)
+            return False
+
+        # if dicts then compare keys/values
+        if isinstance(obj1, dict):      # and isinstance(obj2, dict):       # shouldn't need to test both
+            # compare dict values
+            for d1 in obj1:
+                if d1 in obj2:
+                    compare = _compareObjects(obj1[d1], obj2[d1], options)
+                    if not compare:
+                        print('  False bad dict item >>', obj1, obj2)
+                        return False
+                else:
+                    print('  False bad dict key >>', obj1, obj2)
+                    return False
+
+        # elif isinstance(obj1, set):      # and isinstance(obj2, set):
+        #     # compare set values
+        #     for s1, s2 in zip(obj1, obj2):
+        #         compare = _compareObjects(s1, s2, options)
+        #         if not compare:
+        #             print('  False bad set item >>', obj1, obj2)
+        #             return False
+
+        elif isinstance(obj1, str):      # and isinstance(obj2, str):
+            if options.ignoreCase:
+                if obj1.lower() != obj2.lower():
+                    print('  False string case >>', obj1, obj2)
+                    return False
+            elif obj1 != obj2:
+                print('  False string >>', obj1, obj2)
+                return False
+
+        else:
+            # compare values
+            for s1, s2 in zip(obj1, obj2):
+                compare = _compareObjects(s1, s2, options)
+                if not compare:
+                    print('  False iterable item >>', obj1, obj2)
+                    return False
+
+    else:
+        # if type(obj1) != type(obj2):
+        #     if type(obj1) != Number and type(obj2) != Number:
+        #         #Different types - immediate fail
+        #         print('  False type >>', obj1, obj2, type(obj1), type(obj2), isinstance(obj1, Number), isinstance(obj2, Number))
+        #         return False
+
+        if isinstance(obj1, (int, float)) and isinstance(obj2, (int, float)):
+            if not isclose(obj1, obj2, rel_tol=pow(10, -options.places)):
+                print('  False float tolerance >>', obj1, obj2)
+                return False
+
+        if isinstance(obj1, complex) and isinstance(obj2, complex):
+            if not cisclose(obj1, obj2, rel_tol=pow(10, -options.places)):
+                print('  False complex tolerance >>', obj1, obj2)
+                return False
+
+        elif obj1 != obj2:
+            print('  False >>', obj1, obj2)
+            return False
+
+    print('  TRUE >>', obj1, obj2)
+    return True
+
+
+def dictsAlmostEqual(dict1, dict2, rel_tol=1e-12):
+    """
+    If dictionary value is a number, then check that the numbers are almost equal, otherwise check if values are exactly equal
+    Note: does not currently try converting strings to digits and comparing them. Does not care about ordering of keys in dictionaries
+    Just returns true or false
+    """
+    if len(dict1) != len(dict2):
+        return False
+    # Loop through each item in the first dict and compare it to the second dict
+    for key, item in dict1.items():
+        # If it is a nested dictionary, need to call the function again
+        if isinstance(item, dict):
+            # If the nested dictionaries are not almost equal, return False
+            if not dictsAlmostEqual(dict1[key], dict2[key], rel_tol=rel_tol):
+                return False
+        # If it's not a dictionary, then continue comparing
+        # Put in else statement or else the nested dictionary will get compared twice and
+        # On the second time will check for exactly equal and will fail
+        else:
+            # If the value is a number, check if they are approximately equal
+            if isinstance(item, Number):
+                # if not abs(dict1[key] - dict2[key]) <= rel_tol:
+                # https://stackoverflow.com/questions/5595425/what-is-the-best-way-to-compare-floats-for-almost-equality-in-python
+                if not isclose(dict1[key], dict2[key], rel_tol=rel_tol):
+                    return False
+            else:
+                if not (dict1[key] == dict2[key]):
+                    return False
+    return True
 
 
 #=========================================================================================
@@ -533,12 +731,14 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     inRight = set(rSet).difference(lSet)
 
     cItem1 = copy.deepcopy(cItem)
-    cItem1.list.append(LOOP + loop1.name)
+    cItem1.strList.append(LOOP + loop1.name)
+    cItem1.objList.append(loop1)
     cItem1.inWhich = 1
     addToList(inLeft, cItem=cItem1, nefList=nefList)
 
     cItem2 = copy.deepcopy(cItem)
-    cItem2.list.append(LOOP + loop2.name)
+    cItem2.strList.append(LOOP + loop2.name)
+    cItem2.objList.append(loop2)
     cItem2.inWhich = 2
     addToList(inRight, cItem=cItem2, nefList=nefList)
 
@@ -548,10 +748,14 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         # NOTE:ED - not sure whether to add this
         if len(loop1.data) != len(loop2.data):  # simple compare, same length tables - should use longest
             cItem3 = copy.deepcopy(cItem)
-            cItem3.list.append(LOOP + loop1.name)
-            cItem3.list.append([' <rowLength>:  ' + str(len(loop1.data)) + ' != ' + str(len(loop2.data))])
+            cItem3.strList.append(LOOP + loop1.name)
+            cItem3.objList.append(loop1)
+
+            cItem3.strList.append([' <rowLength>:  ' + str(len(loop1.data)) + ' != ' + str(len(loop2.data))])
             cItem3.inWhich = 3
-            nefList.append(nefItem(cItem=cItem3))
+
+            # nefList.append(nefItem(cItem=cItem3))
+            nefList.append(cItem3)
 
         # carry on and compare the common table
 
@@ -619,16 +823,22 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         # can't compare non-existent loopdata
         if loop1.data is None:
             cItem3 = copy.deepcopy(cItem)
-            cItem3.list.append(LOOP + loop1.name)
-            cItem3.list.append([' <Contains no data>'])
+            cItem3.strList.append(LOOP + loop1.name)
+            cItem3.objList.append(loop1)
+            cItem3.strList.append([' <Contains no data>'])
             cItem3.inWhich = 1
-            nefList.append(nefItem(cItem=cItem3))
+
+            # nefList.append(nefItem(cItem=cItem3))
+            nefList.append(cItem3)
         if loop2.data is None:
             cItem3 = copy.deepcopy(cItem)
-            cItem3.list.append(LOOP + loop2.name)
-            cItem3.list.append([' <Contains no data>'])
+            cItem3.strList.append(LOOP + loop2.name)
+            cItem3.objList.append(loop2)
+            cItem3.strList.append([' <Contains no data>'])
             cItem3.inWhich = 2
-            nefList.append(nefItem(cItem=cItem3))
+
+            # nefList.append(nefItem(cItem=cItem3))
+            nefList.append(cItem3)
 
     return nefList
 
@@ -644,32 +854,60 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
 
     symbol = ' == ' if options.identical else ' != '
 
-    # iterate through existing items
+    # iterate through existing items to find the correct loop
     for itm in nefList:
-        for a, b in zip_longest(cItem3.list[:] + [LOOP + loop1.name],
-                                itm.list[:-1]):
 
-            # check that the tree of saveFrame names matches
-            if a != b:
-                break
+        # NOTE:ED - can check the objects here rather than the strings
+        # for a, b in zip_longest(cItem3.objList[:] + [loop1],
+        #                         itm.objList):
+
+        # for a, b in zip_longest(cItem3.strList[:] + [LOOP + loop1.name],
+        #                         itm.strList[:-1]):
+        #
+        #     # check that the tree of saveFrame names matches
+        #     if a != b:
+        #         break
+
+        if itm.objList[-1] != loop1:
+
+            # I think this is enough
+            pass
+
         else:
             # check that it is the correct frame type (1=inleft only, 2=inRight only, 3=inBoth)
             if itm.inWhich == inWhich:
-                itm.list[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                    + str(rowIndex) + '  -->  ' \
-                                    + str(loopValue1) + symbol \
-                                    + str(loopValue2))
+                itm.strList[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                                       + str(rowIndex) + '  -->  ' \
+                                       + str(loopValue1) + symbol \
+                                       + str(loopValue2))
+
+                itm.compareList.append(compareItem(attribute=compName,
+                                                 row=rowIndex,
+                                                 column=compName,
+                                                 thisValue=loopValue1,
+                                                 compareValue=loopValue2))
                 break
 
     else:
         # create a new item
-        cItem3.list.append(LOOP + loop1.name)
-        cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
-                            + str(rowIndex) + '  -->  ' \
-                            + str(loopValue1) + symbol \
-                            + str(loopValue2)])
+        cItem3.strList.append(LOOP + loop1.name)
+        cItem3.objList.append(loop1)
+
+        cItem3.strList.append([' <Column>: ' + compName + '  <rowIndex>: ' \
+                               + str(rowIndex) + '  -->  ' \
+                               + str(loopValue1) + symbol \
+                               + str(loopValue2)])
         cItem3.inWhich = inWhich
-        nefList.append(nefItem(cItem=cItem3))
+
+        cItem3.compareList = [compareItem(attribute=compName,
+                                         row=rowIndex,
+                                         column=compName,
+                                         thisValue=loopValue1,
+                                         compareValue=loopValue2)]
+        cItem3._identical = options.identical
+
+        # nefList.append(nefItem(cItem=cItem3))
+        nefList.append(cItem3)
 
 
 #=========================================================================================
@@ -706,7 +944,8 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
     # list everything only present in the first saveFrame
 
     cItem1 = copy.deepcopy(cItem)
-    cItem1.list.append(SAVEFRAME + saveFrame1.name)
+    cItem1.strList.append(SAVEFRAME + saveFrame1.name)
+    cItem1.objList.append(saveFrame1)
     cItem1.inWhich = 1
     addToList(inLeft, cItem=cItem1, nefList=nefList)
     addToList(inVLeft, cItem=cItem1, nefList=nefList)
@@ -714,7 +953,8 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
     # list everything only present in the second saveFrame
 
     cItem2 = copy.deepcopy(cItem)
-    cItem2.list.append(SAVEFRAME + saveFrame2.name)
+    cItem2.strList.append(SAVEFRAME + saveFrame2.name)
+    cItem2.objList.append(saveFrame2)
     cItem2.inWhich = 2
     addToList(inRight, cItem=cItem2, nefList=nefList)
     addToList(inVRight, cItem=cItem2, nefList=nefList)
@@ -722,7 +962,8 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
     # compare the common items
 
     cItem3 = copy.deepcopy(cItem)
-    cItem3.list.append(SAVEFRAME + saveFrame1.name)
+    cItem3.strList.append(SAVEFRAME + saveFrame1.name)
+    cItem3.objList.append(saveFrame1)
     cItem3.inWhich = 3
     for compName in dSet:
         # compare the loop items of the matching saveFrames
@@ -737,12 +978,22 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
 
         if (saveFrame1[compName] == saveFrame2[compName]) == options.identical:
             cItem3 = copy.deepcopy(cItem)
-            cItem3.list.append(SAVEFRAME + saveFrame2.name)
-            cItem3.list.append([' <Value>:  ' + compName + '  -->  ' \
-                                + str(saveFrame1[compName]) + symbol \
-                                + str(saveFrame2[compName])])
+            cItem3.strList.append(SAVEFRAME + saveFrame2.name)
+            cItem3.objList.append(saveFrame2)
+
+            # not strictly necessary here
+            cItem3.strList.append([' <Value>:  ' + compName + '  -->  ' \
+                                   + str(saveFrame1[compName]) + symbol \
+                                   + str(saveFrame2[compName])])
             cItem3.inWhich = 3
-            nefList.append(nefItem(cItem=cItem3))
+
+            cItem3.compareList = compareItem(attribute=compName,
+                                             thisValue=saveFrame1[compName],
+                                             compareValue=saveFrame2[compName])
+            cItem3._identical = options.identical
+
+            # nefList.append(nefItem(cItem=cItem3))
+            nefList.append(cItem3)
 
     return nefList
 
@@ -775,21 +1026,24 @@ def compareDataBlocks(dataBlock1, dataBlock2, options, cItem=None, nefList=None)
     # list everything only present in the first DataBlock
 
     cItem1 = copy.deepcopy(cItem)
-    cItem1.list.append(DATABLOCK + dataBlock1.name)
+    cItem1.strList.append(DATABLOCK + dataBlock1.name)
+    cItem1.objList.append(dataBlock1)
     cItem1.inWhich = 1
     addToList(inLeft, cItem=cItem1, nefList=nefList)
 
     # list everything only present in the second DataBlock
 
     cItem2 = copy.deepcopy(cItem)
-    cItem2.list.append(DATABLOCK + dataBlock2.name)
+    cItem2.strList.append(DATABLOCK + dataBlock2.name)
+    cItem2.objList.append(dataBlock2)
     cItem2.inWhich = 2
     addToList(inRight, cItem=cItem2, nefList=nefList)
 
     # compare the common items - strictly there should only be one DataBlock
 
     cItem3 = copy.deepcopy(cItem)
-    cItem3.list.append(DATABLOCK + dataBlock1.name)
+    cItem3.strList.append(DATABLOCK + dataBlock1.name)
+    cItem3.objList.append(dataBlock1)
     cItem3.inWhich = 3
     for compName in dSet:
         compareSaveFrames(dataBlock1[compName], dataBlock2[compName], options, cItem=cItem3, nefList=nefList)
@@ -825,21 +1079,24 @@ def compareDataExtents(dataExt1, dataExt2, options, cItem=None, nefList=None):
     # list everything only present in the first DataExtent
 
     cItem1 = copy.deepcopy(cItem)
-    cItem1.list = [DATAEXTENT + dataExt1.name]
+    cItem1.strList = [DATAEXTENT + dataExt1.name]
+    cItem1.objList = [dataExt1]
     cItem1.inWhich = 1  # left
     addToList(inLeft, cItem=cItem1, nefList=nefList)
 
     # list everything only present in the second DataExtent
 
     cItem2 = copy.deepcopy(cItem)
-    cItem2.list = [DATAEXTENT + dataExt2.name]
+    cItem2.strList = [DATAEXTENT + dataExt2.name]
+    cItem2.objList = [dataExt2]
     cItem2.inWhich = 2  # right
     addToList(inRight, cItem=cItem2, nefList=nefList)
 
     # compare the common items - strictly there should only be one DataExtent
 
     cItem3 = copy.deepcopy(cItem)
-    cItem3.list = [DATAEXTENT + dataExt1.name]
+    cItem3.strList = [DATAEXTENT + dataExt1.name]
+    cItem3.objList = [dataExt1]
     cItem3.inWhich = 3  # both
     for compName in dSet:
         compareDataBlocks(dataExt1[compName], dataExt2[compName], options, cItem=cItem3, nefList=nefList)

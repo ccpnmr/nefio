@@ -132,7 +132,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-24 18:09:44 +0100 (Fri, April 24, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-27 14:25:31 +0100 (Mon, April 27, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -241,7 +241,7 @@ class nefItem(object):
         self.list = []
 
         if cItem is not None:
-            self.list = copy.deepcopy(cItem.list)
+            self.list = copy.deepcopy(cItem.strList)
             self.inWhich = cItem.inWhich
 
 
@@ -320,12 +320,12 @@ def printWhichList(nefList, whichType=0):
     for cCount, cc in enumerate(nefList):
         if cc.inWhich == whichType:
 
-            if isinstance(cc.list[-1], str):
-                print('  ' + ':'.join(cc.list[:]))
+            if isinstance(cc.strList[-1], str):
+                print('  ' + ':'.join(cc.strList[:]))
             else:
-                outStr = '  ' + ':'.join(cc.list[:-1]) + ': contains --> '
+                outStr = '  ' + ':'.join(cc.strList[:-1]) + ': contains --> '
                 lineTab = '\n' + ' ' * len(outStr)
-                print(outStr + lineTab.join(cc.list[-1]))
+                print(outStr + lineTab.join(cc.strList[-1]))
 
 
 #=========================================================================================
@@ -401,7 +401,7 @@ def addToList(inList, cItem, nefList):
     """
     if len(inList) > 0:
         cItem3 = copy.deepcopy(cItem)
-        cItem3.list.append(list(inList))  # nest the list within the cItem
+        cItem3.strList.append(list(inList))  # nest the list within the cItem
         nefList.append(nefItem(cItem=cItem3))
 
     return nefList
@@ -566,8 +566,8 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
 
     # iterate through existing items
     for itm in nefList:
-        for a, b in zip_longest(cItem3.list[:] + [LOOP + loop1.name],
-                                itm.list[:-1]):
+        for a, b in zip_longest(cItem3.strList[:] + [LOOP + loop1.name],
+                                itm.strList[:-1]):
 
             # check that the tree of saveFrame names matches
             if a != b:
@@ -575,19 +575,19 @@ def _addItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, 
         else:
             # check that it is the correct frame type (1=inleft only, 2=inRight only, 3=inBoth)
             if itm.inWhich == inWhich:
-                itm.list[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                    + str(rowIndex) + '  -->  ' \
-                                    + str(loopValue1) + ' != ' \
-                                    + str(loopValue2))
+                itm.strList[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                                       + str(rowIndex) + '  -->  ' \
+                                       + str(loopValue1) + ' != ' \
+                                       + str(loopValue2))
                 break
 
     else:
         # create a new item
-        cItem3.list.append(LOOP + loop1.name)
-        cItem3.list.append([' <Column>: ' + compName + '  <rowIndex>: ' \
-                            + str(rowIndex) + '  -->  ' \
-                            + str(loopValue1) + ' != ' \
-                            + str(loopValue2)])
+        cItem3.strList.append(LOOP + loop1.name)
+        cItem3.strList.append([' <Column>: ' + compName + '  <rowIndex>: ' \
+                               + str(rowIndex) + '  -->  ' \
+                               + str(loopValue1) + ' != ' \
+                               + str(loopValue2)])
         cItem3.inWhich = inWhich
         nefList.append(nefItem(cItem=cItem3))
 
