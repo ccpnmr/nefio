@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-28 10:29:11 +0100 (Tue, April 28, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-28 16:44:20 +0100 (Tue, April 28, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -201,12 +201,10 @@ import re
 import unittest
 from . import GenericStarParser, StarIo
 from .SafeOpen import safeOpen
-from ast import literal_eval
 from os import listdir
 from os.path import isfile, join
 from enum import Enum
 from collections import Iterable
-from numbers import Number
 from math import isclose
 from cmath import isclose as cisclose
 
@@ -292,6 +290,9 @@ def defineArguments():
     parser.add_argument('-p', '--places', dest='places', nargs=1, default=10, type=int, choices=range(1, 16),
                         help='Specify number of decimal places for relative tolerance')
 
+    parser.add_argument('-m', '--maxrows', dest='maxRows', nargs=1, default=None, type=int,
+                        help='Specify the maximum number of rows to show/print in each loop/saveframe')
+
     group = parser.add_mutually_exclusive_group()
     for nefItem in NEFOPTIONS:
         group.add_argument('--{}'.format(nefItem.value), dest='nefOption', action='store_const', const=nefItem,
@@ -333,15 +334,12 @@ class nefItem(object):
         self.strList = []
         self.objList = []
         self.compareList = []
-
+        self.differenceList = []
+        self.warningList = []
+        self.errorList = []
         self.thisObj = None
         self.compareObj = None
-
         self._identical = False
-
-        if cItem is not None:
-            self.strList = copy.deepcopy(cItem.strList)
-            self.inWhich = cItem.inWhich
 
 
 #=========================================================================================
@@ -410,28 +408,96 @@ def sizeNefList(nefList, whichType=0):
 # printWhichList
 #=========================================================================================
 
-def printWhichList(nefList, whichType=0):
+def printWhichList(nefList, options, whichType=0):
     """List only those items that are of type whichType
 
     :param nefList: list to print
     :param whichType: type to print
     """
-    for cCount, cc in enumerate(nefList):
-        if cc.inWhich == whichType:
 
-            if isinstance(cc.strList[-1], str):
-                printOutput('  ' + ':'.join(cc.strList[:]))
-            else:
-                outStr = '  ' + ':'.join(cc.strList[:-1]) + ': contains --> '
-                lineTab = '\n' + ' ' * len(outStr)
-                printOutput(outStr + lineTab.join(cc.strList[-1]))
+    lineLeader = lineTab = ''
+    maxRows = options.maxRows
+    for cCount, nefItem in enumerate(nefList):
+        if nefItem.inWhich == whichType:
+
+            outStr = '  ' + ':'.join(obj.name for obj in nefItem.objList) + ': contains --> '
+            lineTab = ' ' * len(outStr)
+            lineLeader = outStr
+
+            if isinstance(nefItem.thisObj, GenericStarParser.Loop):
+                # outStr = '  ' + ':'.join(obj.name for obj in cc.objList) + ': contains --> '
+                # lineTab = ' ' * len(outStr)
+                # lineLeader = outStr
+
+                for warn in nefItem.warningList[:min(maxRows, len(nefItem.warningList)) if maxRows else len(nefItem.warningList)]:
+                    print('{} {}'.format(lineLeader, warn))
+                    lineLeader = lineTab
+                if maxRows < len(nefItem.warningList):
+                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.warningList) - maxRows, 's' if (len(nefItem.warningList) - maxRows) > 1 else ''))
+
+                for error in nefItem.errorList[:min(maxRows, len(nefItem.errorList)) if maxRows else len(nefItem.errorList)]:
+                    print('{} {}'.format(lineLeader, error))
+                    lineLeader = lineTab
+                if maxRows < len(nefItem.errorList):
+                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.errorList) - maxRows, 's' if (len(nefItem.errorList) - maxRows) > 1 else ''))
+
+                for compareObj in nefItem.compareList[:min(maxRows, len(nefItem.compareList)) if maxRows else len(nefItem.compareList)]:
+                    symbol = ' == ' if nefItem._identical else ' != '
+
+                    dataStr = '{} <Col>: {} <Row:> {} --> {} {} {}'.format(lineLeader,
+                                                                           compareObj.attribute,
+                                                                           compareObj.row,
+                                                                           compareObj.thisValue,
+                                                                           symbol,
+                                                                           compareObj.compareValue)
+                    printOutput(dataStr)
+                    lineLeader = lineTab
+                if maxRows < len(nefItem.compareList):
+                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.compareList) - maxRows, 's' if (len(nefItem.compareList) - maxRows) > 1 else ''))
+
+            if isinstance(nefItem.thisObj, GenericStarParser.SaveFrame):
+                # outStr = '  ' + ':'.join(obj.name for obj in cc.objList) + ': contains --> '
+                # lineTab = ' ' * len(outStr)
+                # lineLeader = outStr
+
+                for warn in nefItem.warningList[:min(maxRows, len(nefItem.warningList)) if maxRows else len(nefItem.warningList)]:
+                    print('{} {}'.format(lineLeader, warn))
+                    lineLeader = lineTab
+                if maxRows < len(nefItem.warningList):
+                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.warningList) - maxRows, 's' if (len(nefItem.warningList) - maxRows) > 1 else ''))
+
+                for error in nefItem.errorList[:min(maxRows, len(nefItem.errorList)) if maxRows else len(nefItem.errorList)]:
+                    print('{} {}'.format(lineLeader, error))
+                    lineLeader = lineTab
+                if maxRows < len(nefItem.errorList):
+                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.errorList) - maxRows, 's' if (len(nefItem.errorList) - maxRows) > 1 else ''))
+
+                for compareObj in nefItem.compareList[:min(maxRows, len(nefItem.compareList)) if maxRows else len(nefItem.compareList)]:
+                    symbol = ' == ' if nefItem._identical else ' != '
+
+                    dataStr = '{} <Value>: {} --> {} {} {}'.format(lineLeader,
+                                                                   compareObj.attribute,
+                                                                   compareObj.thisValue,
+                                                                   symbol,
+                                                                   compareObj.compareValue)
+                    printOutput(dataStr)
+                    lineLeader = lineTab
+                if maxRows < len(nefItem.compareList):
+                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.compareList) - maxRows, 's' if (len(nefItem.compareList) - maxRows) > 1 else ''))
+
+            for diffObj in nefItem.differenceList[:min(maxRows, len(nefItem.differenceList)) if maxRows else len(nefItem.differenceList)]:
+                dataStr = '{} {}'.format(lineLeader, diffObj.attribute)
+                printOutput(dataStr)
+                lineLeader = lineTab
+            if maxRows < len(nefItem.differenceList):
+                print('{} ... {} more row{}'.format(lineLeader, len(nefItem.differenceList) - maxRows, 's' if (len(nefItem.differenceList) - maxRows) > 1 else ''))
 
 
 #=========================================================================================
 # printCompareList
 #=========================================================================================
 
-def printCompareList(nefList, inFile1, inFile2):
+def printCompareList(nefList, inFile1, inFile2, options):
     """Print the contents of the nef compare list to the screen
 
     Output is in three parts:
@@ -454,17 +520,17 @@ def printCompareList(nefList, inFile1, inFile2):
     # print the items that are only present in the first nefFile
     if sizeNefList(nefList, whichType=1) > 0:
         printOutput('\nItems that are only present in ' + inFile1 + ':')
-        printWhichList(nefList, 1)
+        printWhichList(nefList, options, 1)
 
     # print the items that are only present in the second nefFile
     if sizeNefList(nefList, whichType=2) > 0:
         printOutput('\nItems that are only present in ' + inFile2 + ':')
-        printWhichList(nefList, 2)
+        printWhichList(nefList, options, 2)
 
     # print the common items
     if sizeNefList(nefList, whichType=3) > 0:
         printOutput('\nItems that are present in both files:')
-        printWhichList(nefList, 3)
+        printWhichList(nefList, options, 3)
 
 
 #=========================================================================================
@@ -486,11 +552,11 @@ def _filterName(inName):
 
 
 #=========================================================================================
-# addToList
+# _createAttributeList
 #=========================================================================================
 
-def addToList(inList, cItem, nefList):
-    """Append cItem to the compare list
+def _createAttributeList(cItem, nefObject, inList, nefList, inWhich):
+    """Create a new attribute list and add to the compare list
     Currently adds one cItem with a list as the last element
 
     :param inList: a list of items to add to the end of cItem
@@ -499,12 +565,16 @@ def addToList(inList, cItem, nefList):
     :return: list of type nefItem
     """
     if len(inList) > 0:
-        cItem3 = copy.deepcopy(cItem)
-        cItem3.strList.append(list(inList))  # nest the list within the cItem
+        newItem = nefItem()
+        newItem.objList = copy.deepcopy(cItem.objList)
+        newItem.objList.append(nefObject)
+        newItem.thisObj = nefObject
+        newItem.inWhich = inWhich
+        for item in inList:
+            newItem.differenceList.append(compareItem(attribute=str(item)))
+        nefList.append(newItem)
 
-        nefList.append(cItem3)
-
-    return nefList
+        return newItem
 
 
 #=========================================================================================
@@ -619,30 +689,27 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     cItem1.strList.append(LOOP + loop1.name)
     cItem1.objList.append(loop1)
     cItem1.inWhich = 1
-    addToList(inLeft, cItem=cItem1, nefList=nefList)
+    _createAttributeList(cItem1, loop1, inLeft, nefList, inWhich=1)
 
     cItem2 = copy.deepcopy(cItem)
     cItem2.strList.append(LOOP + loop2.name)
     cItem2.objList.append(loop2)
     cItem2.inWhich = 2
-    addToList(inRight, cItem=cItem2, nefList=nefList)
+    _createAttributeList(cItem2, loop2, inRight, nefList, inWhich=2)
 
     if loop1.data and loop2.data:
         rowRange = max(len(loop1.data), len(loop2.data))
+        nefLoopItem = None
 
+        symbol = ' == ' if options.identical else ' != '
         # NOTE:ED - not sure whether to add this
         if len(loop1.data) != len(loop2.data):  # simple compare, same length tables - should use longest
-            cItem3 = copy.deepcopy(cItem)
-            cItem3.strList.append(LOOP + loop1.name)
-            cItem3.objList.append(loop1)
 
-            cItem3.strList.append([' <rowLength>:  ' + str(len(loop1.data)) + ' != ' + str(len(loop2.data))])
-            cItem3.inWhich = 3
-
-            nefList.append(cItem3)
+            nefLoopItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=3)
+            nefLoopItem.warningList.append('<rowLength>:  {} {} {}'.format(len(loop1.data),
+                                           symbol, len(loop2.data)))
 
         # carry on and compare the common table
-        firstItem = True
         for compName in dSet:
             for rowIndex in range(rowRange):
 
@@ -650,11 +717,10 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
                 loopValue2 = loop2.data[rowIndex][compName] if rowIndex < len(loop2.data) else None
 
                 if _compareObjects(loopValue1, loopValue2, options) == options.identical:
-                    if firstItem:
-                        nefItem = _createLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
-                        firstItem = False
+                    if not nefLoopItem:
+                        nefLoopItem = _createLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
                     else:
-                        _addLoopItem(nefItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
+                        _addLoopItem(nefLoopItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
 
         #TODO
         # need to add a further test here, could do a diff on the tables which would pick up
@@ -666,68 +732,87 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         # NOTE:ED - not sure whether to add this
         # can't compare non-existent loopdata
         if loop1.data is None:
-            cItem3 = copy.deepcopy(cItem)
-            cItem3.strList.append(LOOP + loop1.name)
-            cItem3.objList.append(loop1)
-            cItem3.strList.append([' <Contains no data>'])
-            cItem3.inWhich = 1
+            newItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=1)
+            newItem.warningList.append('<Contains no data>')
+            # cItem3 = copy.deepcopy(cItem)
+            # cItem3.strList.append(LOOP + loop1.name)
+            # cItem3.objList.append(loop1)
+            # cItem3.strList.append([' <Contains no data>'])
+            # cItem3.inWhich = 1
+            #
+            # nefList.append(cItem3)
 
-            nefList.append(cItem3)
         if loop2.data is None:
-            cItem3 = copy.deepcopy(cItem)
-            cItem3.strList.append(LOOP + loop2.name)
-            cItem3.objList.append(loop2)
-            cItem3.strList.append([' <Contains no data>'])
-            cItem3.inWhich = 2
-
-            nefList.append(cItem3)
+            newItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=2)
+            newItem.warningList.append('<Contains no data>')
+            # cItem3 = copy.deepcopy(cItem)
+            # cItem3.strList.append(LOOP + loop2.name)
+            # cItem3.objList.append(loop2)
+            # cItem3.strList.append([' <Contains no data>'])
+            # cItem3.inWhich = 2
+            #
+            # nefList.append(cItem3)
 
     return nefList
+
+
+#=========================================================================================
+# _createNewLoop
+#=========================================================================================
+
+def _createNewLoop(cItem, loop, nefList, options, inWhich):
+    """Create a new item in the nefList to hold the current loop
+    """
+    # create a new item - keeping history of objects
+    newItem = nefItem()
+    newItem.strList = copy.deepcopy(cItem.strList)
+    newItem.objList = copy.deepcopy(cItem.objList)
+    newItem.strList.append(LOOP + loop.name)
+    newItem.objList.append(loop)
+    newItem.thisObj = loop
+    newItem.inWhich = inWhich
+    newItem._identical = options.identical
+    nefList.append(newItem)
+    return newItem
 
 
 #=========================================================================================
 # _createLoopItem to the NefList or append to existing
 #=========================================================================================
 
-def _createLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich):
-    """Check the list of already added items and append to the end OR create a new item
+def _createLoopItem(cItem, compName, loop, loopValue1, loopValue2, nefList, rowIndex, options, inWhich):
+    """Create a new loop item and set the compare item
     """
     # create a new item
-    cItem3 = copy.deepcopy(cItem)
-    cItem3.strList.append(LOOP + loop1.name)
-    cItem3.objList.append(loop1)
-    cItem3.thisObj = loop1
+    newItem = _createNewLoop(cItem, loop, nefList, options, inWhich)
+    # symbol = ' == ' if options.identical else ' != '
+    # newItem.strList.append([' <Column>: ' + compName + '  <rowIndex>: ' \
+    #                        + str(rowIndex) + '  -->  ' \
+    #                        + str(loopValue1) + symbol \
+    #                        + str(loopValue2)])
+    newItem.inWhich = inWhich
+    newItem.compareList = [compareItem(attribute=compName,
+                                       row=rowIndex,
+                                       column=compName,
+                                       thisValue=loopValue1,
+                                       compareValue=loopValue2)]
+    newItem._identical = options.identical
 
-    symbol = ' == ' if options.identical else ' != '
-    cItem3.strList.append([' <Column>: ' + compName + '  <rowIndex>: ' \
-                           + str(rowIndex) + '  -->  ' \
-                           + str(loopValue1) + symbol \
-                           + str(loopValue2)])
-    cItem3.inWhich = inWhich
-
-    cItem3.compareList = [compareItem(attribute=compName,
-                                      row=rowIndex,
-                                      column=compName,
-                                      thisValue=loopValue1,
-                                      compareValue=loopValue2)]
-    cItem3._identical = options.identical
-
-    nefList.append(cItem3)
-    return cItem3
+    return newItem
 
 
 #=========================================================================================
 # _addLoopItem to the NefList or append to existing
 #=========================================================================================
 
-def _addLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich):
+def _addLoopItem(cItem, compName, loop, loopValue1, loopValue2, nefList, rowIndex, options, inWhich):
     """Check the list of already added items and append to the end OR create a new item
     """
-    symbol = ' == ' if options.identical else ' != '
-    cItem.strList[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                             + str(rowIndex) + '  -->  ' \
-                             + str(loopValue1) + symbol \
-                             + str(loopValue2))
+    # symbol = ' == ' if options.identical else ' != '
+    # cItem.strList[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
+    #                          + str(rowIndex) + '  -->  ' \
+    #                          + str(loopValue1) + symbol \
+    #                          + str(loopValue2))
 
     cItem.compareList.append(compareItem(attribute=compName,
                                          row=rowIndex,
@@ -737,45 +822,59 @@ def _addLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowInd
 
 
 #=========================================================================================
+# _createNewSaveFrame
+#=========================================================================================
+
+def _createNewSaveFrame(cItem, saveFrame, nefList, options, inWhich):
+    """Create a new item in the nefList to hold the current saveFrame
+    """
+    # create a new item - keeping history of objects
+    newItem = nefItem()
+    newItem.strList = copy.deepcopy(cItem.strList)
+    newItem.objList = copy.deepcopy(cItem.objList)
+    newItem.strList.append(SAVEFRAME + saveFrame.name)
+    newItem.objList.append(saveFrame)
+    newItem.thisObj = saveFrame
+    newItem.inWhich = inWhich
+    newItem._identical = options.identical
+    nefList.append(newItem)
+    return newItem
+
+
+#=========================================================================================
 # _createSaveFrameItem to the NefList or append to existing
 #=========================================================================================
 
-def _createSaveFrameItem(cItem, compName, saveFrame2, saveFrameValue1, saveFrameValue2, nefList, options, inWhich):
-    """Check the list of already added items and append to the end OR create a new item
+def _createSaveFrameItem(cItem, compName, saveFrame, saveFrameValue1, saveFrameValue2, nefList, options, inWhich):
+    """Create a new saveFrame item and set the compare item
     """
     # create a new item
-    cItem3 = copy.deepcopy(cItem)
-    cItem3.strList.append(SAVEFRAME + saveFrame2.name)
-    cItem3.objList.append(saveFrame2)
-    cItem3.thisObj = saveFrame2
+    newItem = _createNewSaveFrame(cItem, saveFrame, nefList, options, inWhich)
 
-    # not strictly necessary here
-    symbol = ' == ' if options.identical else ' != '
-    cItem3.strList.append([' <Value>:  ' + compName + '  -->  ' \
-                           + str(saveFrameValue1) + symbol \
-                           + str(saveFrameValue2)])
-    cItem3.inWhich = inWhich
+    # symbol = ' == ' if options.identical else ' != '
+    # cItem3.strList.append([' <Value>:  ' + compName + '  -->  ' \
+    #                        + str(saveFrameValue1) + symbol \
+    #                        + str(saveFrameValue2)])
+    newItem.inWhich = inWhich
+    newItem.compareList = [compareItem(attribute=compName,
+                                       thisValue=saveFrameValue1,
+                                       compareValue=saveFrameValue2)]
+    newItem._identical = options.identical
 
-    cItem3.compareList = [compareItem(attribute=compName,
-                                      thisValue=saveFrameValue1,
-                                      compareValue=saveFrameValue2)]
-    cItem3._identical = options.identical
-
-    nefList.append(cItem3)
-    return cItem3
+    return newItem
 
 
 #=========================================================================================
 # _addSaveFrameItem to the NefList or append to existing
 #=========================================================================================
 
-def _addSaveFrameItem(cItem, compName, saveFrame2, saveFrameValue1, saveFrameValue2, nefList, options, inWhich):
-    """Check the list of already added items and append to the end OR create a new item
+def _addSaveFrameItem(cItem, compName, saveFrame, saveFrameValue1, saveFrameValue2, nefList, options, inWhich):
+    """Check the list of already added items and append to the end
     """
-    symbol = ' == ' if options.identical else ' != '
-    cItem.strList[-1].append([' <Value>:  ' + compName + '  -->  ' \
-                              + str(saveFrameValue1) + symbol \
-                              + str(saveFrameValue2)])
+    # symbol = ' == ' if options.identical else ' != '
+    # cItem.strList[-1].append([' <Value>:  ' + compName + '  -->  ' \
+    #                           + str(saveFrameValue1) + symbol \
+    #                           + str(saveFrameValue2)])
 
     cItem.compareList.append(compareItem(attribute=compName,
                                          thisValue=saveFrameValue1,
@@ -819,8 +918,8 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
     cItem1.strList.append(SAVEFRAME + saveFrame1.name)
     cItem1.objList.append(saveFrame1)
     cItem1.inWhich = 1
-    addToList(inLeft, cItem=cItem1, nefList=nefList)
-    addToList(inVLeft, cItem=cItem1, nefList=nefList)
+    _createAttributeList(cItem1, saveFrame1, inLeft, nefList, inWhich=1)
+    _createAttributeList(cItem1, saveFrame1, inVLeft, nefList, inWhich=1)
 
     # list everything only present in the second saveFrame
 
@@ -828,8 +927,8 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
     cItem2.strList.append(SAVEFRAME + saveFrame2.name)
     cItem2.objList.append(saveFrame2)
     cItem2.inWhich = 2
-    addToList(inRight, cItem=cItem2, nefList=nefList)
-    addToList(inVRight, cItem=cItem2, nefList=nefList)
+    _createAttributeList(cItem2, saveFrame2, inRight, nefList, inWhich=2)
+    _createAttributeList(cItem2, saveFrame2, inVRight, nefList, inWhich=2)
 
     # compare the common items
 
@@ -842,17 +941,16 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
 
         compareLoops(saveFrame1[compName], saveFrame2[compName], options, cItem=cItem3, nefList=nefList)
 
-    firstItem = True
+    nefLoopItem = None
     for compName in dVSet:
         if _compareObjects(saveFrame1[compName], saveFrame2[compName], options) == options.identical:
             # need to make sure these go in the same result nefItem
             # i.e. keep first item object
-            if firstItem:
-                nefItem = _createSaveFrameItem(cItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
-                                            options, inWhich=3)
-                # firstItem = False
+            if not nefLoopItem:
+                nefLoopItem = _createSaveFrameItem(cItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
+                                               options, inWhich=3)
             else:
-                _addSaveFrameItem(nefItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
+                _addSaveFrameItem(nefLoopItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
                                   options, inWhich=3)
     return nefList
 
@@ -888,7 +986,7 @@ def compareDataBlocks(dataBlock1, dataBlock2, options, cItem=None, nefList=None)
     cItem1.strList.append(DATABLOCK + dataBlock1.name)
     cItem1.objList.append(dataBlock1)
     cItem1.inWhich = 1
-    addToList(inLeft, cItem=cItem1, nefList=nefList)
+    _createAttributeList(cItem1, dataBlock1, inLeft, nefList, inWhich=1)
 
     # list everything only present in the second DataBlock
 
@@ -896,7 +994,7 @@ def compareDataBlocks(dataBlock1, dataBlock2, options, cItem=None, nefList=None)
     cItem2.strList.append(DATABLOCK + dataBlock2.name)
     cItem2.objList.append(dataBlock2)
     cItem2.inWhich = 2
-    addToList(inRight, cItem=cItem2, nefList=nefList)
+    _createAttributeList(cItem2, dataBlock2, inRight, nefList, inWhich=2)
 
     # compare the common items - strictly there should only be one DataBlock
 
@@ -941,7 +1039,7 @@ def compareDataExtents(dataExt1, dataExt2, options, cItem=None, nefList=None):
     cItem1.strList = [DATAEXTENT + dataExt1.name]
     cItem1.objList = [dataExt1]
     cItem1.inWhich = 1  # left
-    addToList(inLeft, cItem=cItem1, nefList=nefList)
+    _createAttributeList(cItem1, dataExt1, inLeft, nefList, inWhich=1)
 
     # list everything only present in the second DataExtent
 
@@ -949,7 +1047,7 @@ def compareDataExtents(dataExt1, dataExt2, options, cItem=None, nefList=None):
     cItem2.strList = [DATAEXTENT + dataExt2.name]
     cItem2.objList = [dataExt2]
     cItem2.inWhich = 2  # right
-    addToList(inRight, cItem=cItem2, nefList=nefList)
+    _createAttributeList(cItem2, dataExt2, inRight, nefList, inWhich=2)
 
     # compare the common items - strictly there should only be one DataExtent
 
@@ -1069,7 +1167,7 @@ def batchCompareNefFiles(inDir1, inDir2, outDir, options):
                 printOutput('Batch processing %s > %s' % (fl, outFileName))
 
                 nefList = compareNefFiles(join(inDir1, fl), join(inDir2, fl), options)
-                printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+                printCompareList(nefList, join(inDir1, fl), join(inDir2, fl), options)
 
             else:
                 # strip the .nef from the end
@@ -1086,7 +1184,7 @@ def batchCompareNefFiles(inDir1, inDir2, outDir, options):
                         printOutput('Batch processing %s > %s' % (fl, os.path.basename(safeFileName)))
                         printOutput(join(inDir1, fl))
                         printOutput(join(inDir2, fl))
-                        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+                        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl), options)
 
                 else:
                     with open(outFileName, 'w') as outLog:
@@ -1096,7 +1194,7 @@ def batchCompareNefFiles(inDir1, inDir2, outDir, options):
                         printOutput('Batch processing %s > %s' % (fl, outFileName))
                         printOutput(join(inDir1, fl))
                         printOutput(join(inDir2, fl))
-                        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl))
+                        printCompareList(nefList, join(inDir1, fl), join(inDir2, fl), options)
                 sys.stdout = stdOriginal
 
 
@@ -1123,7 +1221,7 @@ def processArguments(options):
                     printOutput()
                     printOutput('Loading Nef Files...')
                     nefList = compareNefFiles(inFile0, inFile1, options)
-                    printCompareList(nefList, inFile0, inFile1)
+                    printCompareList(nefList, inFile0, inFile1, options)
 
                 elif len(options.inFiles) < 2:
                     showError('too few files specified')
@@ -1170,16 +1268,17 @@ class Test_compareFiles(unittest.TestCase):
     """Test the comparison of nef files and print the results
     """
 
-    def test_compareFiles(self):
+    @unittest.skip
+    def test_compareSimilarFiles(self):
         """Load two files and compare
         """
         # define arguments to simulate command line
         parser = defineArguments()
-        options = parser.parse_args([])
+        options = parser.parse_args('-Icf file1 file2'.split())
 
         # set the two files to compare
-        inFile1 = os.path.join('.', 'nef', 'testdata', 'Commented_Example.nef')
-        inFile2 = os.path.join('.', 'nef', 'testdata', 'Commented_Example_Change.nef')
+        inFile1 = os.path.join('.', 'testdata', 'Commented_Example.nef')
+        inFile2 = os.path.join('.', 'testdata', 'Commented_Example_Change.nef')
 
         print('\nTEST COMPARISON')
         print('   file1 = ' + inFile1)
@@ -1188,20 +1287,49 @@ class Test_compareFiles(unittest.TestCase):
 
         # load and output results
         nefList = compareNefFiles(inFile1, inFile2, options)
-        printCompareList(nefList, inFile1, inFile2)
+        printCompareList(nefList, inFile1, inFile2, options)
 
+    def test_compareDifferentFiles(self):
+        """Load two files and compare
+        """
+        # define arguments to simulate command line
+        parser = defineArguments()
+        options = parser.parse_args('-Icf file1 file2'.split())
+
+        # set the two files to compare
+        inFile1 = os.path.join('.', 'testdata', 'CCPN_1nk2_docr.nef')
+        inFile2 = os.path.join('.', 'testdata', 'CCPN_2kko_docr.nef')
+
+        # inFile1 = '/Users/ejb66/Documents/CcpNmrData/NefTestData_1_1/CCPN_Commented_Example.nef'
+        inFile1 = '/Users/ejb66/Documents/CcpNmrData/nefTestProject.nef'
+        inFile2 = '/Users/ejb66/Documents/CcpNmrData/nefTestProject2.nef'
+
+        print('\nTEST COMPARISON')
+        print('   file1 = ' + inFile1)
+        print('   file2 = ' + inFile2)
+        print('Loading...')
+
+        # load and output results
+        options.identical = False
+        options.ignoreBlockName = True
+        options.almostEqual = False
+        options.maxRows = 8
+        nefList = compareNefFiles(inFile1, inFile2, options)
+        printCompareList(nefList, inFile1, inFile2, options)
+
+    @unittest.skip
     def test_compareBatchFiles(self):
         """Compare the Nef files in two directories
         """
         # define arguments to simulate command line
         parser = defineArguments()
-        options = parser.parse_args([])
+        options = parser.parse_args('-Icf file1 file2'.split())
         options.createDirs = True
         options.replaceExisting = False
 
-        inDir1 = os.path.join('.', 'nef', 'testdata', 'testinfolder1')
-        inDir2 = os.path.join('.', 'nef', 'testdata', 'testinfolder2')
-        outDir = os.path.join('.', 'nef', 'testdata', 'testoutfolder')
+        inDir1 = os.path.join('.', 'testdata', 'testinfolder1')
+        inDir2 = os.path.join('.', 'testdata', 'testinfolder2')
+        outDir = os.path.join('.', 'testdata', 'testoutfolder')
 
         batchCompareNefFiles(inDir1, inDir2, outDir, options)
 
