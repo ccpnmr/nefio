@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-27 19:41:26 +0100 (Mon, April 27, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-28 10:29:11 +0100 (Tue, April 28, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -642,6 +642,7 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
             nefList.append(cItem3)
 
         # carry on and compare the common table
+        firstItem = True
         for compName in dSet:
             for rowIndex in range(rowRange):
 
@@ -649,7 +650,11 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
                 loopValue2 = loop2.data[rowIndex][compName] if rowIndex < len(loop2.data) else None
 
                 if _compareObjects(loopValue1, loopValue2, options) == options.identical:
-                    _addLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
+                    if firstItem:
+                        nefItem = _createLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
+                        firstItem = False
+                    else:
+                        _addLoopItem(nefItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich=3)
 
         #TODO
         # need to add a further test here, could do a diff on the tables which would pick up
@@ -681,115 +686,101 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
 
 
 #=========================================================================================
+# _createLoopItem to the NefList or append to existing
+#=========================================================================================
+
+def _createLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich):
+    """Check the list of already added items and append to the end OR create a new item
+    """
+    # create a new item
+    cItem3 = copy.deepcopy(cItem)
+    cItem3.strList.append(LOOP + loop1.name)
+    cItem3.objList.append(loop1)
+    cItem3.thisObj = loop1
+
+    symbol = ' == ' if options.identical else ' != '
+    cItem3.strList.append([' <Column>: ' + compName + '  <rowIndex>: ' \
+                           + str(rowIndex) + '  -->  ' \
+                           + str(loopValue1) + symbol \
+                           + str(loopValue2)])
+    cItem3.inWhich = inWhich
+
+    cItem3.compareList = [compareItem(attribute=compName,
+                                      row=rowIndex,
+                                      column=compName,
+                                      thisValue=loopValue1,
+                                      compareValue=loopValue2)]
+    cItem3._identical = options.identical
+
+    nefList.append(cItem3)
+    return cItem3
+
+
+#=========================================================================================
 # _addLoopItem to the NefList or append to existing
 #=========================================================================================
 
 def _addLoopItem(cItem, compName, loop1, loopValue1, loopValue2, nefList, rowIndex, options, inWhich):
     """Check the list of already added items and append to the end OR create a new item
     """
-    cItem3 = copy.deepcopy(cItem)
-
     symbol = ' == ' if options.identical else ' != '
+    cItem.strList[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
+                             + str(rowIndex) + '  -->  ' \
+                             + str(loopValue1) + symbol \
+                             + str(loopValue2))
 
-    # iterate through existing items to find the correct loop
-    for itm in nefList:
+    cItem.compareList.append(compareItem(attribute=compName,
+                                         row=rowIndex,
+                                         column=compName,
+                                         thisValue=loopValue1,
+                                         compareValue=loopValue2))
 
-        if itm.objList[-1] == loop1:
-            # check that it is the correct frame type (1=inleft only, 2=inRight only, 3=inBoth)
-            if itm.inWhich == inWhich:
-                itm.strList[-1].append(' <Column>: ' + compName + '  <rowIndex>: ' \
-                                       + str(rowIndex) + '  -->  ' \
-                                       + str(loopValue1) + symbol \
-                                       + str(loopValue2))
 
-                itm.compareList.append(compareItem(attribute=compName,
-                                                   row=rowIndex,
-                                                   column=compName,
-                                                   thisValue=loopValue1,
-                                                   compareValue=loopValue2))
-                break
+#=========================================================================================
+# _createSaveFrameItem to the NefList or append to existing
+#=========================================================================================
 
-    else:
-        # create a new item
-        cItem3.strList.append(LOOP + loop1.name)
-        cItem3.objList.append(loop1)
+def _createSaveFrameItem(cItem, compName, saveFrame2, saveFrameValue1, saveFrameValue2, nefList, options, inWhich):
+    """Check the list of already added items and append to the end OR create a new item
+    """
+    # create a new item
+    cItem3 = copy.deepcopy(cItem)
+    cItem3.strList.append(SAVEFRAME + saveFrame2.name)
+    cItem3.objList.append(saveFrame2)
+    cItem3.thisObj = saveFrame2
 
-        cItem3.strList.append([' <Column>: ' + compName + '  <rowIndex>: ' \
-                               + str(rowIndex) + '  -->  ' \
-                               + str(loopValue1) + symbol \
-                               + str(loopValue2)])
-        cItem3.inWhich = inWhich
+    # not strictly necessary here
+    symbol = ' == ' if options.identical else ' != '
+    cItem3.strList.append([' <Value>:  ' + compName + '  -->  ' \
+                           + str(saveFrameValue1) + symbol \
+                           + str(saveFrameValue2)])
+    cItem3.inWhich = inWhich
 
-        cItem3.compareList = [compareItem(attribute=compName,
-                                          row=rowIndex,
-                                          column=compName,
-                                          thisValue=loopValue1,
-                                          compareValue=loopValue2)]
-        cItem3._identical = options.identical
+    cItem3.compareList = [compareItem(attribute=compName,
+                                      thisValue=saveFrameValue1,
+                                      compareValue=saveFrameValue2)]
+    cItem3._identical = options.identical
 
-        nefList.append(cItem3)
+    nefList.append(cItem3)
+    return cItem3
 
 
 #=========================================================================================
 # _addSaveFrameItem to the NefList or append to existing
 #=========================================================================================
 
-def _addSaveFrameItem(cItem, compName, saveFrame2, saveFrameValue1, saveFrameValue2, nefList, options, inWhich, firstItem):
+def _addSaveFrameItem(cItem, compName, saveFrame2, saveFrameValue1, saveFrameValue2, nefList, options, inWhich):
     """Check the list of already added items and append to the end OR create a new item
     """
-    # cItem3 = copy.deepcopy(cItem)
-
     symbol = ' == ' if options.identical else ' != '
+    cItem.strList[-1].append([' <Value>:  ' + compName + '  -->  ' \
+                              + str(saveFrameValue1) + symbol \
+                              + str(saveFrameValue2)])
 
-    if firstItem:
-
-    # # iterate through existing items to find the correct loop
-    # for itm in nefList:
-    #
-    #     if itm.objList[-1] == saveFrame2:
-    #         # check that it is the correct frame type (1=inleft only, 2=inRight only, 3=inBoth)
-    #         if itm.inWhich == inWhich:
-    #             itm.strList[-1].append([' <Value>:  ' + compName + '  -->  ' \
-    #                            + str(saveFrameValue1) + symbol \
-    #                            + str(saveFrameValue2)])
-    #
-    #             itm.compareList.append(compareItem(attribute=compName,
-    #                                      thisValue=saveFrameValue1,
-    #                                      compareValue=saveFrameValue2))
-    #             break
-    #
-    # else:
-
-        # create a new item
-        cItem3 = copy.deepcopy(cItem)
-        cItem3.strList.append(SAVEFRAME + saveFrame2.name)
-        cItem3.objList.append(saveFrame2)
-
-        # not strictly necessary here
-        cItem3.strList.append([' <Value>:  ' + compName + '  -->  ' \
-                               + str(saveFrameValue1) + symbol \
-                               + str(saveFrameValue2)])
-        cItem3.inWhich = inWhich
-
-        cItem3.compareList = [compareItem(attribute=compName,
+    cItem.compareList.append(compareItem(attribute=compName,
                                          thisValue=saveFrameValue1,
-                                         compareValue=saveFrameValue2)]
-        cItem3._identical = options.identical
+                                         compareValue=saveFrameValue2))
 
-        nefList.append(cItem3)
-        return cItem3
-
-    else:
-
-        cItem.strList[-1].append([' <Value>:  ' + compName + '  -->  ' \
-                       + str(saveFrameValue1) + symbol \
-                       + str(saveFrameValue2)])
-
-        cItem.compareList.append(compareItem(attribute=compName,
-                                 thisValue=saveFrameValue1,
-                                 compareValue=saveFrameValue2))
-
-        return cItem
 
 #=========================================================================================
 # compareSaveFrames
@@ -851,40 +842,18 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
 
         compareLoops(saveFrame1[compName], saveFrame2[compName], options, cItem=cItem3, nefList=nefList)
 
+    firstItem = True
     for compName in dVSet:
-        # compare the other items in the saveFrames
-        #   mandatory/optional parameters
-
-        symbol = ' == ' if options.identical else ' != '
-
-        firstItem = True
         if _compareObjects(saveFrame1[compName], saveFrame2[compName], options) == options.identical:
-
             # need to make sure these go in the same result nefItem
             # i.e. keep first item object
-
-            nefItem = cItem
-            nefItem = _addSaveFrameItem(nefItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
-                                        options, inWhich=3, firstItem=firstItem)
-            firstItem = False
-
-            # cItem3 = copy.deepcopy(cItem)
-            # cItem3.strList.append(SAVEFRAME + saveFrame2.name)
-            # cItem3.objList.append(saveFrame2)
-            #
-            # # not strictly necessary here
-            # cItem3.strList.append([' <Value>:  ' + compName + '  -->  ' \
-            #                        + str(saveFrame1[compName]) + symbol \
-            #                        + str(saveFrame2[compName])])
-            # cItem3.inWhich = 3
-            #
-            # cItem3.compareList = compareItem(attribute=compName,
-            #                                  thisValue=saveFrame1[compName],
-            #                                  compareValue=saveFrame2[compName])
-            # cItem3._identical = options.identical
-            #
-            # nefList.append(cItem3)
-
+            if firstItem:
+                nefItem = _createSaveFrameItem(cItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
+                                            options, inWhich=3)
+                # firstItem = False
+            else:
+                _addSaveFrameItem(nefItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
+                                  options, inWhich=3)
     return nefList
 
 
