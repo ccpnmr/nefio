@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-28 16:44:20 +0100 (Tue, April 28, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-28 18:19:53 +0100 (Tue, April 28, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -204,7 +204,7 @@ from .SafeOpen import safeOpen
 from os import listdir
 from os.path import isfile, join
 from enum import Enum
-from collections import Iterable
+from collections.abc import Iterable
 from math import isclose
 from cmath import isclose as cisclose
 
@@ -258,6 +258,17 @@ def defineArguments():
     """
     import argparse
 
+    def _checkInt(value):
+        try:
+            intValue = int(value)
+        except Exception as es:
+            raise argparse.ArgumentTypeError("{} must be an int {}".format(value, es))
+
+        if intValue < 0:
+            raise argparse.ArgumentTypeError("{} must be positive int".format(value))
+
+        return intValue
+
     parser = argparse.ArgumentParser(prog='compareNef',
                                      usage='%(prog)s [options]',
                                      description='Compare the contents of Nef files')
@@ -290,7 +301,7 @@ def defineArguments():
     parser.add_argument('-p', '--places', dest='places', nargs=1, default=10, type=int, choices=range(1, 16),
                         help='Specify number of decimal places for relative tolerance')
 
-    parser.add_argument('-m', '--maxrows', dest='maxRows', nargs=1, default=None, type=int,
+    parser.add_argument('-m', '--maxrows', dest='maxRows', default=None, type=_checkInt,
                         help='Specify the maximum number of rows to show/print in each loop/saveframe')
 
     group = parser.add_mutually_exclusive_group()
@@ -415,7 +426,12 @@ def printWhichList(nefList, options, whichType=0):
     :param whichType: type to print
     """
 
-    lineLeader = lineTab = ''
+    def _remainingRows(thisList):
+        """Output the remaining number of elements on the list
+        """
+        if maxRows is not None and maxRows < len(thisList):
+            print('{} ... {} more row{}'.format(lineLeader, len(thisList) - maxRows, 's' if (len(thisList) - maxRows) > 1 else ''))
+
     maxRows = options.maxRows
     for cCount, nefItem in enumerate(nefList):
         if nefItem.inWhich == whichType:
@@ -425,23 +441,17 @@ def printWhichList(nefList, options, whichType=0):
             lineLeader = outStr
 
             if isinstance(nefItem.thisObj, GenericStarParser.Loop):
-                # outStr = '  ' + ':'.join(obj.name for obj in cc.objList) + ': contains --> '
-                # lineTab = ' ' * len(outStr)
-                # lineLeader = outStr
-
-                for warn in nefItem.warningList[:min(maxRows, len(nefItem.warningList)) if maxRows else len(nefItem.warningList)]:
+                for warn in nefItem.warningList[:maxRows]:
                     print('{} {}'.format(lineLeader, warn))
                     lineLeader = lineTab
-                if maxRows < len(nefItem.warningList):
-                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.warningList) - maxRows, 's' if (len(nefItem.warningList) - maxRows) > 1 else ''))
+                _remainingRows(nefItem.warningList)
 
-                for error in nefItem.errorList[:min(maxRows, len(nefItem.errorList)) if maxRows else len(nefItem.errorList)]:
+                for error in nefItem.errorList[:maxRows]:
                     print('{} {}'.format(lineLeader, error))
                     lineLeader = lineTab
-                if maxRows < len(nefItem.errorList):
-                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.errorList) - maxRows, 's' if (len(nefItem.errorList) - maxRows) > 1 else ''))
+                _remainingRows(nefItem.errorList)
 
-                for compareObj in nefItem.compareList[:min(maxRows, len(nefItem.compareList)) if maxRows else len(nefItem.compareList)]:
+                for compareObj in nefItem.compareList[:maxRows]:
                     symbol = ' == ' if nefItem._identical else ' != '
 
                     dataStr = '{} <Col>: {} <Row:> {} --> {} {} {}'.format(lineLeader,
@@ -452,27 +462,20 @@ def printWhichList(nefList, options, whichType=0):
                                                                            compareObj.compareValue)
                     printOutput(dataStr)
                     lineLeader = lineTab
-                if maxRows < len(nefItem.compareList):
-                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.compareList) - maxRows, 's' if (len(nefItem.compareList) - maxRows) > 1 else ''))
+                _remainingRows(nefItem.compareList)
 
             if isinstance(nefItem.thisObj, GenericStarParser.SaveFrame):
-                # outStr = '  ' + ':'.join(obj.name for obj in cc.objList) + ': contains --> '
-                # lineTab = ' ' * len(outStr)
-                # lineLeader = outStr
-
-                for warn in nefItem.warningList[:min(maxRows, len(nefItem.warningList)) if maxRows else len(nefItem.warningList)]:
+                for warn in nefItem.warningList[:maxRows]:
                     print('{} {}'.format(lineLeader, warn))
                     lineLeader = lineTab
-                if maxRows < len(nefItem.warningList):
-                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.warningList) - maxRows, 's' if (len(nefItem.warningList) - maxRows) > 1 else ''))
+                _remainingRows(nefItem.warningList)
 
-                for error in nefItem.errorList[:min(maxRows, len(nefItem.errorList)) if maxRows else len(nefItem.errorList)]:
+                for error in nefItem.errorList[:maxRows]:
                     print('{} {}'.format(lineLeader, error))
                     lineLeader = lineTab
-                if maxRows < len(nefItem.errorList):
-                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.errorList) - maxRows, 's' if (len(nefItem.errorList) - maxRows) > 1 else ''))
+                _remainingRows(nefItem.errorList)
 
-                for compareObj in nefItem.compareList[:min(maxRows, len(nefItem.compareList)) if maxRows else len(nefItem.compareList)]:
+                for compareObj in nefItem.compareList[:maxRows]:
                     symbol = ' == ' if nefItem._identical else ' != '
 
                     dataStr = '{} <Value>: {} --> {} {} {}'.format(lineLeader,
@@ -482,15 +485,13 @@ def printWhichList(nefList, options, whichType=0):
                                                                    compareObj.compareValue)
                     printOutput(dataStr)
                     lineLeader = lineTab
-                if maxRows < len(nefItem.compareList):
-                    print('{} ... {} more row{}'.format(lineLeader, len(nefItem.compareList) - maxRows, 's' if (len(nefItem.compareList) - maxRows) > 1 else ''))
+                _remainingRows(nefItem.compareList)
 
-            for diffObj in nefItem.differenceList[:min(maxRows, len(nefItem.differenceList)) if maxRows else len(nefItem.differenceList)]:
+            for diffObj in nefItem.differenceList[:maxRows]:
                 dataStr = '{} {}'.format(lineLeader, diffObj.attribute)
                 printOutput(dataStr)
                 lineLeader = lineTab
-            if maxRows < len(nefItem.differenceList):
-                print('{} ... {} more row{}'.format(lineLeader, len(nefItem.differenceList) - maxRows, 's' if (len(nefItem.differenceList) - maxRows) > 1 else ''))
+            _remainingRows(nefItem.differenceList)
 
 
 #=========================================================================================
@@ -707,7 +708,7 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
 
             nefLoopItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=3)
             nefLoopItem.warningList.append('<rowLength>:  {} {} {}'.format(len(loop1.data),
-                                           symbol, len(loop2.data)))
+                                                                           symbol, len(loop2.data)))
 
         # carry on and compare the common table
         for compName in dSet:
@@ -948,7 +949,7 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
             # i.e. keep first item object
             if not nefLoopItem:
                 nefLoopItem = _createSaveFrameItem(cItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
-                                               options, inWhich=3)
+                                                   options, inWhich=3)
             else:
                 _addSaveFrameItem(nefLoopItem, compName, saveFrame2, saveFrame1[compName], saveFrame2[compName], nefList,
                                   options, inWhich=3)
@@ -1268,7 +1269,7 @@ class Test_compareFiles(unittest.TestCase):
     """Test the comparison of nef files and print the results
     """
 
-    @unittest.skip
+    # @unittest.skip
     def test_compareSimilarFiles(self):
         """Load two files and compare
         """
@@ -1289,6 +1290,7 @@ class Test_compareFiles(unittest.TestCase):
         nefList = compareNefFiles(inFile1, inFile2, options)
         printCompareList(nefList, inFile1, inFile2, options)
 
+    @unittest.skip
     def test_compareDifferentFiles(self):
         """Load two files and compare
         """
