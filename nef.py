@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-29 15:57:23 +0100 (Wed, April 29, 2020) $"
+__dateModified__ = "$dateModified: 2020-04-29 16:28:00 +0100 (Wed, April 29, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -215,12 +215,6 @@ try:
 except:
     # python 2.7
     from itertools import izip_longest as zip_longest
-
-DATAEXTENT = ''
-DATABLOCK = ''
-SAVEFRAME = ''
-LOOP = ''
-COLUMN = ''
 
 EXCLUSIVEGROUP = ['compare', 'verify']
 
@@ -578,7 +572,7 @@ def _createAttributeList(cItem, nefObject, inList, nefList):
     if len(inList) > 0:
         newItem = nefItem()
         newItem.objList = copy.deepcopy(cItem.objList)
-        newItem.objList.append(nefObject)
+        # newItem.objList.append(nefObject)
         newItem.thisObj = nefObject
         newItem.inWhich = cItem.inWhich
         newItem.differenceList = [compareItem(attribute=str(item)) for item in inList]
@@ -696,7 +690,7 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     inRight = set(rSet).difference(lSet)
 
     cItem1 = copy.deepcopy(cItem)
-    cItem1.strList.append(LOOP + loop1.name)
+    cItem1.strList.append(loop1.name)
     cItem1.objList.append(loop1)
     cItem1.inWhich = whichTypes.LEFT
     cItem1.thisObj = loop1
@@ -704,7 +698,7 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     _createAttributeList(cItem1, loop1, inLeft, nefList)
 
     cItem2 = copy.deepcopy(cItem)
-    cItem2.strList.append(LOOP + loop2.name)
+    cItem2.strList.append(loop2.name)
     cItem2.objList.append(loop2)
     cItem2.inWhich = whichTypes.RIGHT
     cItem2.thisObj = loop2
@@ -719,7 +713,7 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         # NOTE:ED - not sure whether to add this
         if len(loop1.data) != len(loop2.data):  # simple compare, same length tables - should use longest
 
-            nefLoopItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=whichTypes.BOTH)
+            nefLoopItem = _createNewItem(cItem, loop1, nefList, options, inWhich=whichTypes.BOTH)
             nefLoopItem.warningList.append('<rowLength>:  {} {} {}'.format(len(loop1.data),
                                                                            symbol, len(loop2.data)))
 
@@ -746,30 +740,30 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
         # NOTE:ED - not sure whether to add this
         # can't compare non-existent loopdata
         if loop1.data is None:
-            newItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=whichTypes.LEFT)
+            newItem = _createNewItem(cItem, loop1, nefList, options, inWhich=whichTypes.LEFT)
             newItem.warningList.append('<Contains no data>')
 
         if loop2.data is None:
-            newItem = _createNewLoop(cItem, loop1, nefList, options, inWhich=whichTypes.RIGHT)
+            newItem = _createNewItem(cItem, loop1, nefList, options, inWhich=whichTypes.RIGHT)
             newItem.warningList.append('<Contains no data>')
 
     return nefList
 
 
 #=========================================================================================
-# _createNewLoop
+# _createNewItem
 #=========================================================================================
 
-def _createNewLoop(cItem, loop, nefList, options, inWhich):
+def _createNewItem(cItem, obj, nefList, options, inWhich):
     """Create a new item in the nefList to hold the current loop
     """
-    # create a new item - keeping history of objects
+    # create a new item - keeping history of objects, could be loop/saveFrame/dataBock/dataExtent
     newItem = nefItem()
     newItem.strList = copy.deepcopy(cItem.strList)
     newItem.objList = copy.deepcopy(cItem.objList)
-    newItem.strList.append(LOOP + loop.name)
-    newItem.objList.append(loop)
-    newItem.thisObj = loop
+    newItem.strList.append(obj.name)
+    newItem.objList.append(obj)
+    newItem.thisObj = obj
     newItem.inWhich = inWhich
     newItem._identical = options.identical
     nefList.append(newItem)
@@ -784,7 +778,7 @@ def _createLoopItem(cItem, compName, loop, loopValue1, loopValue2, nefList, rowI
     """Create a new loop item and set the compare item
     """
     # create a new item
-    newItem = _createNewLoop(cItem, loop, nefList, options, inWhich)
+    newItem = _createNewItem(cItem, loop, nefList, options, inWhich)
     newItem.inWhich = inWhich
     newItem.compareList = [compareItem(attribute=compName,
                                        row=rowIndex,
@@ -811,26 +805,6 @@ def _addLoopItem(cItem, compName, loop, loopValue1, loopValue2, nefList, rowInde
 
 
 #=========================================================================================
-# _createNewSaveFrame
-#=========================================================================================
-
-def _createNewSaveFrame(cItem, saveFrame, nefList, options, inWhich):
-    """Create a new item in the nefList to hold the current saveFrame
-    """
-    # create a new item - keeping history of objects
-    newItem = nefItem()
-    newItem.strList = copy.deepcopy(cItem.strList)
-    newItem.objList = copy.deepcopy(cItem.objList)
-    newItem.strList.append(SAVEFRAME + saveFrame.name)
-    newItem.objList.append(saveFrame)
-    newItem.thisObj = saveFrame
-    newItem.inWhich = inWhich
-    newItem._identical = options.identical
-    nefList.append(newItem)
-    return newItem
-
-
-#=========================================================================================
 # _createSaveFrameItem to the NefList or append to existing
 #=========================================================================================
 
@@ -838,7 +812,7 @@ def _createSaveFrameItem(cItem, compName, saveFrame, saveFrameValue1, saveFrameV
     """Create a new saveFrame item and set the compare item
     """
     # create a new item
-    newItem = _createNewSaveFrame(cItem, saveFrame, nefList, options, inWhich)
+    newItem = _createNewItem(cItem, saveFrame, nefList, options, inWhich)
     newItem.inWhich = inWhich
     newItem.compareList = [compareItem(attribute=compName,
                                        thisValue=saveFrameValue1,
@@ -893,34 +867,19 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
 
     # list everything only present in the first saveFrame
 
-    cItem1 = copy.deepcopy(cItem)
-    cItem1.strList.append(SAVEFRAME + saveFrame1.name)
-    cItem1.objList.append(saveFrame1)
-    cItem1.inWhich = whichTypes.LEFT
-    cItem1.thisObj = saveFrame1
-    cItem1.compareObj = None
+    cItem1 = _duplicateItem(cItem, saveFrame1, None, whichTypes.LEFT)
     _createAttributeList(cItem1, saveFrame1, inLeft, nefList)
     _createAttributeList(cItem1, saveFrame1, inVLeft, nefList)
 
     # list everything only present in the second saveFrame
 
-    cItem2 = copy.deepcopy(cItem)
-    cItem2.strList.append(SAVEFRAME + saveFrame2.name)
-    cItem2.objList.append(saveFrame2)
-    cItem2.inWhich = whichTypes.RIGHT
-    cItem2.thisObj = saveFrame2
-    cItem2.compareObj = None
+    cItem2 = _duplicateItem(cItem, saveFrame2, None, whichTypes.RIGHT)
     _createAttributeList(cItem2, saveFrame2, inRight, nefList)
     _createAttributeList(cItem2, saveFrame2, inVRight, nefList)
 
     # compare the common items
 
-    cItem3 = copy.deepcopy(cItem)
-    cItem3.strList.append(SAVEFRAME + saveFrame1.name)
-    cItem3.objList.append(saveFrame1)
-    cItem3.inWhich = whichTypes.BOTH
-    cItem3.thisObj = saveFrame1
-    cItem3.compareObj = saveFrame2
+    cItem3 = _duplicateItem(cItem, saveFrame1, saveFrame2, whichTypes.BOTH)
     for compName in dSet:
         # compare the loop items of the matching saveFrames
 
@@ -943,6 +902,21 @@ def compareSaveFrames(saveFrame1, saveFrame2, options, cItem=None, nefList=None)
 #=========================================================================================
 # compareDataBlocks
 #=========================================================================================
+
+def _duplicateItem(cItem, thisObj, compareObj, inWhich):
+    """Create a duplicate nefItem
+    """
+    newItem = nefItem()
+    newItem.strList = copy.deepcopy(cItem.strList)
+    newItem.objList = copy.deepcopy(cItem.objList)
+    newItem.strList.append(thisObj.name)
+    newItem.objList.append(thisObj)
+    newItem.thisObj = thisObj
+    newItem.compareObj = compareObj
+    newItem.inWhich = inWhich
+
+    return newItem
+
 
 def compareDataBlocks(dataBlock1, dataBlock2, options, cItem=None, nefList=None):
     """Compare two dataBlocks, if they have the same name then check their contents
@@ -967,32 +941,17 @@ def compareDataBlocks(dataBlock1, dataBlock2, options, cItem=None, nefList=None)
 
     # list everything only present in the first DataBlock
 
-    cItem1 = copy.deepcopy(cItem)
-    cItem1.strList.append(DATABLOCK + dataBlock1.name)
-    cItem1.objList.append(dataBlock1)
-    cItem1.inWhich = whichTypes.LEFT
-    cItem1.thisObj = dataBlock1
-    cItem1.compareObj = None
+    cItem1 = _duplicateItem(cItem, dataBlock1, None, whichTypes.LEFT)
     _createAttributeList(cItem1, dataBlock1, inLeft, nefList)
 
     # list everything only present in the second DataBlock
 
-    cItem2 = copy.deepcopy(cItem)
-    cItem2.strList.append(DATABLOCK + dataBlock2.name)
-    cItem2.objList.append(dataBlock2)
-    cItem2.inWhich = whichTypes.RIGHT
-    cItem2.thisObj = dataBlock2
-    cItem2.compareObj = None
+    cItem2 = _duplicateItem(cItem, dataBlock2, None, whichTypes.RIGHT)
     _createAttributeList(cItem2, dataBlock2, inRight, nefList)
 
     # compare the common items - strictly there should only be one DataBlock
 
-    cItem3 = copy.deepcopy(cItem)
-    cItem3.strList.append(DATABLOCK + dataBlock1.name)
-    cItem3.objList.append(dataBlock1)
-    cItem3.inWhich = whichTypes.BOTH
-    cItem3.thisObj = dataBlock1
-    cItem3.compareObj = dataBlock2
+    cItem3 = _duplicateItem(cItem, dataBlock1, dataBlock2, whichTypes.BOTH)
     for compName in dSet:
         compareSaveFrames(dataBlock1[compName], dataBlock2[compName], options, cItem=cItem3, nefList=nefList)
 
@@ -1026,32 +985,17 @@ def compareDataExtents(dataExt1, dataExt2, options, cItem=None, nefList=None):
 
     # list everything only present in the first DataExtent
 
-    cItem1 = copy.deepcopy(cItem)
-    cItem1.strList = [DATAEXTENT + dataExt1.name]
-    cItem1.objList = [dataExt1]
-    cItem1.inWhich = whichTypes.LEFT
-    cItem1.thisObj = dataExt1
-    cItem1.compareObj = None
+    cItem1 = _duplicateItem(cItem, dataExt1, None, whichTypes.LEFT)
     _createAttributeList(cItem1, dataExt1, inLeft, nefList)
 
     # list everything only present in the second DataExtent
 
-    cItem2 = copy.deepcopy(cItem)
-    cItem2.strList = [DATAEXTENT + dataExt2.name]
-    cItem2.objList = [dataExt2]
-    cItem2.inWhich = whichTypes.RIGHT
-    cItem2.thisObj = dataExt2
-    cItem2.compareObj = None
+    cItem2 = _duplicateItem(cItem, dataExt2, None, whichTypes.RIGHT)
     _createAttributeList(cItem2, dataExt2, inRight, nefList)
 
     # compare the common items - strictly there should only be one DataExtent
 
-    cItem3 = copy.deepcopy(cItem)
-    cItem3.strList = [DATAEXTENT + dataExt1.name]
-    cItem3.objList = [dataExt1]
-    cItem3.inWhich = whichTypes.BOTH
-    cItem3.thisObj = dataExt1
-    cItem3.compareObj = dataExt2
+    cItem3 = _duplicateItem(cItem, dataExt1, dataExt2, whichTypes.BOTH)
     for compName in dSet:
         compareDataBlocks(dataExt1[compName], dataExt2[compName], options, cItem=cItem3, nefList=nefList)
 
