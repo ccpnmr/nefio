@@ -892,13 +892,22 @@ class NefImporter(el.ErrorLog):
             return self._reader(project, *args, **kwds)
 
     def _attachVerifier(self, verifier):
-        """attach a veify method
+        """attach a verify method
         """
         self._verifier = verifier
 
     def _verifyNef(self, project, *args, **kwds):
         if hasattr(self, '_verifier'):
             return self._verifier(project, *args, **kwds)
+
+    def _attachContent(self, content):
+        """attach a content method
+        """
+        self._content = content
+
+    def _contentNef(self, project, *args, **kwds):
+        if hasattr(self, '_content'):
+            return self._content(project, *args, **kwds)
 
 
 class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
