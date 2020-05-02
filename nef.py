@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-02 03:18:42 +0100 (Sat, May 02, 2020) $"
+__dateModified__ = "$dateModified: 2020-05-02 03:23:16 +0100 (Sat, May 02, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -1158,8 +1158,7 @@ def verifyFile(file, options):
 
     # validate
     validCheck = _loader.isValid
-
-    print(_loader.name)
+    print(_loader.validErrorLog)
 
     # simple test print of saveframes
     print(validCheck)
