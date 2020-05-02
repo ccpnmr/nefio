@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-04-29 16:28:00 +0100 (Wed, April 29, 2020) $"
+__dateModified__ = "$dateModified: 2020-05-02 03:18:42 +0100 (Sat, May 02, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -440,9 +440,6 @@ def printWhichList(nefList, options, whichType=whichTypes.NONE):
             outStr = '  ' + ':'.join(obj.name for obj in nefItem.objList) + ': contains --> '
             lineTab = ' ' * len(outStr)
             lineLeader = outStr
-
-            print('LEFT  {}'.format(nefItem.thisObj))
-            print('RIGHT {}'.format(nefItem.compareObj))
 
             if isinstance(nefItem.thisObj, GenericStarParser.Loop):
                 for warn in nefItem.warningList[:maxRows]:
@@ -1003,7 +1000,7 @@ def compareDataExtents(dataExt1, dataExt2, options, cItem=None, nefList=None):
 
 
 #=========================================================================================
-# compareFiles
+# compareNefFiles
 #=========================================================================================
 
 def compareNefFiles(inFile1, inFile2, options, cItem=None, nefList=None):
@@ -1053,7 +1050,7 @@ def compareNefFiles(inFile1, inFile2, options, cItem=None, nefList=None):
 
 
 #=========================================================================================
-# Test_Compare_Files
+# batchCompareNefFiles
 #=========================================================================================
 
 def batchCompareNefFiles(inDir1, inDir2, outDir, options):
@@ -1140,6 +1137,56 @@ def batchCompareNefFiles(inDir1, inDir2, outDir, options):
 
 
 #=========================================================================================
+# verifyFiles
+#=========================================================================================
+
+def verifyFile(file, options):
+    """Verify a single file
+
+    :param file:
+    :param options:
+    :return:
+    """
+    VALIDATEDICT = '/Users/ejb66/PycharmProjects/Git/NEF/specification/mmcif_nef.dic'
+
+    from ccpn.util.nef import NefImporter as Nef
+
+    # load the file and the validate dict
+    _loader = Nef.NefImporter(errorLogging=Nef.el.NEF_STANDARD, hidePrefix=True)
+    _loader.loadFile(file)
+    _loader.loadValidateDictionary(VALIDATEDICT)
+
+    # validate
+    validCheck = _loader.isValid
+
+    print(_loader.name)
+
+    # simple test print of saveframes
+    print(validCheck)
+    # names = _loader.getSaveFrameNames(returnType=Nef.NEF_RETURNALL)
+    # for name in names:
+    #     print(name)
+    #     saveFrame = _loader.getSaveFrame(name)
+    #     print(saveFrame)
+
+
+def verifyFiles(inFiles, options):
+    """Verify files
+
+    :param inFiles:
+    :param options: nameSpace holding the commandLineArguments
+    """
+    print('VERIFYING')
+    badFiles = [f for f in inFiles if not (os.path.exists(f) and f[-4:] == '.nef')]
+    files = [f for f in inFiles if (os.path.exists(f) and f[-4:] == '.nef')]
+    if badFiles:
+        print('bad')
+
+    for file in files:
+        verifyFile(file, options)
+
+
+#=========================================================================================
 # ProcessArguments
 #=========================================================================================
 
@@ -1191,10 +1238,17 @@ def processArguments(options):
             else:
                 printOutput('Incorrect arguments, use nef -h')
 
-        elif options.nefOptions == NEFOPTIONS.VERIFY:
+        elif options.nefOption == NEFOPTIONS.VERIFY:
 
             # verify options here
-            pass
+            if options.inFiles is not None:
+                verifyFiles(inFiles=options.inFiles, options=options)
+
+            elif options.batchDirs is not None:
+                pass
+
+            else:
+                printOutput('Incorrect arguments, use nef -h')
 
         else:
 
@@ -1209,7 +1263,34 @@ class Test_compareFiles(unittest.TestCase):
     """Test the comparison of nef files and print the results
     """
 
+    @unittest.skip
+    def test_verifyFiles(self):
+        """Load two files and verify
+        """
+        # define arguments to simulate command line
+        parser = defineArguments()
+
+        # set the two files to compare
+        inFile1 = os.path.join('.', 'testdata', 'Commented_Example.nef')
+        inFile2 = os.path.join('.', 'testdata', 'Commented_Example_Change.nef')
+
+        options = parser.parse_args(('-Ic --verify -f {} {}'.format(inFile1, inFile2)).split())
+        processArguments(options)
+
     # @unittest.skip
+    def test_verifySingleFile(self):
+        """Load single file and verify
+        """
+        # define arguments to simulate command line
+        parser = defineArguments()
+
+        # set the file to compare
+        inFile = '/Users/ejb66/Documents/CcpNmrData/nefTestProject.nef'
+
+        options = parser.parse_args(('-Ic --verify -f {}'.format(inFile)).split())
+        processArguments(options)
+
+    @unittest.skip
     def test_compareSimilarFiles(self):
         """Load two files and compare
         """

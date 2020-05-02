@@ -18,8 +18,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-01-14 11:59:08 +0000 (Tue, January 14, 2020) $"
-__version__ = "$Revision: 3.0.0 $"
+__dateModified__ = "$dateModified: 2020-05-02 03:18:42 +0100 (Sat, May 02, 2020) $"
+__version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -140,11 +140,13 @@ class Validator(object):
                         mandatoryLoopFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is True and nm[LOOP_CATEGORY] == loop]
                         optionalLoopFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is False and nm[LOOP_CATEGORY] == loop]
 
-                        if saveframe[loop] and saveframe[loop].data:
-                            # check for missing words/bad fields (keys)/malformed loops
-                            e += self.__dict_missing_keys(saveframe[loop].data[0], mandatoryLoopFields, label='{}:{}'.format(sf_name, loop))
-                            e += self.__dict_nonallowed_keys(saveframe[loop].data[0], mandatoryLoopFields + optionalLoopFields, label='{}:{}'.format(sf_name, loop))
-                            e += self.__loop_entries_inconsistent_keys(saveframe[loop].data, label='{}:{}'.format(sf_name, loop))
+                        if saveframe[loop]:
+                            # NOTE:ED - changed to allow empty loops
+                            if saveframe[loop].data:
+                                # check for missing words/bad fields (keys)/malformed loops
+                                e += self.__dict_missing_keys(saveframe[loop].data[0], mandatoryLoopFields, label='{}:{}'.format(sf_name, loop))
+                                e += self.__dict_nonallowed_keys(saveframe[loop].data[0], mandatoryLoopFields + optionalLoopFields, label='{}:{}'.format(sf_name, loop))
+                                e += self.__loop_entries_inconsistent_keys(saveframe[loop].data, label='{}:{}'.format(sf_name, loop))
                         else:
 
                             # this error is a catch-all as loadFile should test the integrity of the nef file before validation
