@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-02 03:18:42 +0100 (Sat, May 02, 2020) $"
+__dateModified__ = "$dateModified: 2020-05-04 12:57:19 +0100 (Mon, May 04, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -147,8 +147,11 @@ class Validator(object):
                                 e += self.__dict_missing_keys(saveframe[loop].data[0], mandatoryLoopFields, label='{}:{}'.format(sf_name, loop))
                                 e += self.__dict_nonallowed_keys(saveframe[loop].data[0], mandatoryLoopFields + optionalLoopFields, label='{}:{}'.format(sf_name, loop))
                                 e += self.__loop_entries_inconsistent_keys(saveframe[loop].data, label='{}:{}'.format(sf_name, loop))
-                        else:
+                            else:
+                                # there should not be any loops without data
+                                e += ["Loop '{}' contains no data.".format(loop), ]
 
+                        else:
                             # this error is a catch-all as loadFile should test the integrity of the nef file before validation
                             e += ["Error reading loop '{}'.".format(loop), ]
 
