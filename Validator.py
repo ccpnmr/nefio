@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-04 12:57:19 +0100 (Mon, May 04, 2020) $"
+__dateModified__ = "$dateModified: 2020-05-06 13:20:42 +0100 (Wed, May 06, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -127,10 +127,10 @@ class Validator(object):
                     loopNames = [nm['category'] for nm in validFrame[NEF_LOOP].data]
 
                     # check for missing words/framecode is not correct/category is mismatched/bad fields (keys)
-                    e += self.__sf_framecode_name_mismatch(saveframe, sf_name)
-                    e += self.__dict_missing_keys(saveframe, mandatoryFields, label=sf_name)
-                    e += self.__sf_category_name_mismatch(saveframe, checkName[0])
-                    e += self.__dict_nonallowed_keys(saveframe, mandatoryFields + optionalFields + loopNames, label=sf_name)
+                    e += self._sf_framecode_name_mismatch(saveframe, sf_name)
+                    e += self._dict_missing_keys(saveframe, mandatoryFields, label=sf_name)
+                    e += self._sf_category_name_mismatch(saveframe, checkName[0])
+                    e += self._dict_nonallowed_keys(saveframe, mandatoryFields + optionalFields + loopNames, label=sf_name)
 
                     # iterate through loops
                     loops = [kk for kk in saveframe.keys() if kk in loopNames]
@@ -144,9 +144,9 @@ class Validator(object):
                             # NOTE:ED - changed to allow empty loops
                             if saveframe[loop].data:
                                 # check for missing words/bad fields (keys)/malformed loops
-                                e += self.__dict_missing_keys(saveframe[loop].data[0], mandatoryLoopFields, label='{}:{}'.format(sf_name, loop))
-                                e += self.__dict_nonallowed_keys(saveframe[loop].data[0], mandatoryLoopFields + optionalLoopFields, label='{}:{}'.format(sf_name, loop))
-                                e += self.__loop_entries_inconsistent_keys(saveframe[loop].data, label='{}:{}'.format(sf_name, loop))
+                                e += self._dict_missing_keys(saveframe[loop].data[0], mandatoryLoopFields, label='{}:{}'.format(sf_name, loop))
+                                e += self._dict_nonallowed_keys(saveframe[loop].data[0], mandatoryLoopFields + optionalLoopFields, label='{}:{}'.format(sf_name, loop))
+                                e += self._loop_entries_inconsistent_keys(saveframe[loop].data, label='{}:{}'.format(sf_name, loop))
                             else:
                                 # there should not be any loops without data
                                 e += ["Loop '{}' contains no data.".format(loop), ]
@@ -207,12 +207,12 @@ class Validator(object):
 
             return e
 
-    def __dict_missing_keys(self, dct, required_keys, label=None):
+    def _dict_missing_keys(self, dct, required_keys, label=None):
         if label is None:
             return ['Missing {} label.'.format(key) for key in required_keys if key not in dct]
         return ['{}: missing {} label.'.format(label, key) for key in required_keys if key not in dct]
 
-    def __dict_missing_value_with_key(self, dct, keys):
+    def _dict_missing_value_with_key(self, dct, keys):
         errors = []
         for key in keys:
             found_key = False
@@ -223,13 +223,13 @@ class Validator(object):
                 errors.append('No saveframes with sf_category: {}.'.format(key))
         return errors
 
-    def __sf_framecode_name_mismatch(self, dct, sf_framecode):
+    def _sf_framecode_name_mismatch(self, dct, sf_framecode):
         if 'sf_framecode' in dct:
             if dct['sf_framecode'] != sf_framecode:
                 return ["sf_framecode {} must match key {}.".format(dct['sf_framecode'], sf_framecode)]
         return []
 
-    def __sf_category_name_mismatch(self, dct, sf_category):
+    def _sf_category_name_mismatch(self, dct, sf_category):
         if 'sf_category' in dct:
             if dct['sf_category'] != sf_category:
                 return ["sf_category {} must be {}.".format(dct['sf_category'], sf_category)]
@@ -237,7 +237,7 @@ class Validator(object):
         #     return ["No sf_category.",]
         return []
 
-    def __loop_entries_inconsistent_keys(self, loop, label):
+    def _loop_entries_inconsistent_keys(self, loop, label):
         errors = []
         if len(loop) > 0:
             fields = list(loop[0].keys())
@@ -254,11 +254,11 @@ class Validator(object):
                         fields_count = len(fields)
                         finished = False
                         break
-                    errors += self.__dict_missing_keys(entry, fields, label=label + ' item {}'
-                                                       .format(i))
+                    errors += self._dict_missing_keys(entry, fields, label=label + ' item {}'
+                                                      .format(i))
         return errors
 
-    def __dict_nonallowed_keys(self, dct, allowed_keys, label=None):
+    def _dict_nonallowed_keys(self, dct, allowed_keys, label=None):
         if label is None:
             return ["Field '{}' not allowed.".format(key)
                     for key in dct.keys() if key not in allowed_keys and not key.startswith(CCPN_PREFIX)]
