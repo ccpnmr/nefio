@@ -149,13 +149,14 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-02 03:23:16 +0100 (Sat, May 02, 2020) $"
+__dateModified__ = "$dateModified: 2020-05-15 13:07:40 +0100 (Fri, May 15, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
+__date__ = "$Date: 2020-05-14 16:11:22 +0000 (Thu, May 14, 2020) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -207,7 +208,7 @@ from enum import Enum
 from collections.abc import Iterable
 from math import isclose
 from cmath import isclose as cisclose
-
+from ast import literal_eval
 
 try:
     # Python 3
@@ -217,6 +218,7 @@ except:
     from itertools import izip_longest as zip_longest
 
 EXCLUSIVEGROUP = ['compare', 'verify']
+CONVERTTOSTRINGS = (int, float, complex, bool, list, tuple, dict, set, frozenset, type(None))
 
 
 class NEFOPTIONS(Enum):
@@ -568,8 +570,7 @@ def _createAttributeList(cItem, nefObject, inList, nefList):
     """
     if len(inList) > 0:
         newItem = nefItem()
-        newItem.objList = copy.deepcopy(cItem.objList)
-        # newItem.objList.append(nefObject)
+        newItem.objList = cItem.objList.copy()
         newItem.thisObj = nefObject
         newItem.inWhich = cItem.inWhich
         newItem.differenceList = [compareItem(attribute=str(item)) for item in inList]
@@ -591,10 +592,16 @@ def _compareObjects(obj1, obj2, options):
     a number of decimal places
     """
 
-    if isinstance(obj1, GenericStarParser.UnquotedValue):
-        obj1 = str(obj1)
-    if isinstance(obj2, GenericStarParser.UnquotedValue):
-        obj2 = str(obj2)
+    if not type(obj1) in CONVERTTOSTRINGS:
+        try:
+            obj1 = literal_eval(obj1)
+        except Exception as es:
+            obj1 = str(obj1)
+    if not type(obj2) in CONVERTTOSTRINGS:
+        try:
+            obj2 = literal_eval(obj2)
+        except Exception as es:
+            obj2 = str(obj2)
 
     if isinstance(obj1, Iterable) and isinstance(obj2, Iterable):
         if type(obj1) != type(obj2):
@@ -686,20 +693,14 @@ def compareLoops(loop1, loop2, options, cItem=None, nefList=None):
     dSet = set(lSet).intersection(rSet)
     inRight = set(rSet).difference(lSet)
 
-    cItem1 = copy.deepcopy(cItem)
+    cItem1 = _duplicateItem(cItem, loop1, None, inWhich=whichTypes.LEFT)
     cItem1.strList.append(loop1.name)
     cItem1.objList.append(loop1)
-    cItem1.inWhich = whichTypes.LEFT
-    cItem1.thisObj = loop1
-    cItem1.compareObj = None
     _createAttributeList(cItem1, loop1, inLeft, nefList)
 
-    cItem2 = copy.deepcopy(cItem)
+    cItem2 = _duplicateItem(cItem, loop2, None, inWhich=whichTypes.RIGHT)
     cItem2.strList.append(loop2.name)
     cItem2.objList.append(loop2)
-    cItem2.inWhich = whichTypes.RIGHT
-    cItem2.thisObj = loop2
-    cItem2.compareObj = None
     _createAttributeList(cItem2, loop2, inRight, nefList)
 
     if loop1.data and loop2.data:
@@ -756,8 +757,8 @@ def _createNewItem(cItem, obj, nefList, options, inWhich):
     """
     # create a new item - keeping history of objects, could be loop/saveFrame/dataBock/dataExtent
     newItem = nefItem()
-    newItem.strList = copy.deepcopy(cItem.strList)
-    newItem.objList = copy.deepcopy(cItem.objList)
+    newItem.strList = cItem.strList.copy()
+    newItem.objList = cItem.objList.copy()
     newItem.strList.append(obj.name)
     newItem.objList.append(obj)
     newItem.thisObj = obj
@@ -904,8 +905,8 @@ def _duplicateItem(cItem, thisObj, compareObj, inWhich):
     """Create a duplicate nefItem
     """
     newItem = nefItem()
-    newItem.strList = copy.deepcopy(cItem.strList)
-    newItem.objList = copy.deepcopy(cItem.objList)
+    newItem.strList = cItem.strList.copy()
+    newItem.objList = cItem.objList.copy()
     newItem.strList.append(thisObj.name)
     newItem.objList.append(thisObj)
     newItem.thisObj = thisObj
