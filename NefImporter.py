@@ -909,6 +909,15 @@ class NefImporter(el.ErrorLog):
         if hasattr(self, '_content'):
             return self._content(project, *args, **kwds)
 
+    def _attachClear(self, clr):
+        """attach a clear/reset method
+        """
+        self._clearNef = clr
+
+    def _clearNef(self, project, *args, **kwds):
+        if hasattr(self, '_clearNef'):
+            return self._clearNef(project, *args, **kwds)
+
 
 class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
     """
