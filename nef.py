@@ -149,13 +149,14 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-19 12:15:18 +0100 (Tue, May 19, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-24 17:34:03 +0100 (Wed, June 24, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
 #=========================================================================================
 __author__ = "$Author: Ed Brooksbank $"
 __date__ = "$Date: 2020-05-14 16:11:22 +0000 (Thu, May 14, 2020) $"
+__date__ = "$Date: 2020-06-24 13:57:48 +0000 (Wed, June 24, 2020) $"
 #=========================================================================================
 # Start of code
 #=========================================================================================
@@ -205,6 +206,7 @@ from os import listdir
 from os.path import isfile, join
 from enum import Enum
 from collections.abc import Iterable
+from collections import OrderedDict
 from math import isclose
 from cmath import isclose as cisclose
 from ast import literal_eval
@@ -217,7 +219,7 @@ except:
     from itertools import izip_longest as zip_longest
 
 EXCLUSIVEGROUP = ['compare', 'verify']
-CONVERTTOSTRINGS = (int, float, complex, bool, list, tuple, dict, set, frozenset, type(None))
+CONVERTTOSTRINGS = (int, float, complex, bool, list, tuple, dict, set, frozenset, OrderedDict, type(None))
 
 
 class NEFOPTIONS(Enum):
@@ -1276,7 +1278,7 @@ class Test_compareFiles(unittest.TestCase):
         options = parser.parse_args(('-Ic --verify -f {} {}'.format(inFile1, inFile2)).split())
         processArguments(options)
 
-    # @unittest.skip
+    @unittest.skip
     def test_verifySingleFile(self):
         """Load single file and verify
         """
@@ -1361,6 +1363,92 @@ class Test_compareFiles(unittest.TestCase):
         """
         # NOTE:ED - need to write some test cases here
         commandLineArguments = parser.parse_args('-Icf file1 file2 file3 -w outDir --verify'.split())
+
+    # @unittest.skip
+    def test_compareObjects(self):
+        """Test the compareObjects method
+        """
+        # set up a test dict
+        testDict1 = {
+            "Boolean2"  : True,
+            "DictOuter" : {
+                "ListSet"    : [[0, {1, 2, 3, 4, 5.0, 'more strings'}],
+                                [0, 1000000.0],
+                                ['Another string', 0.0]],
+                "String1"    : 'this is a string',
+                "nestedLists": [[0, 0],
+                                [0, 1 + 2.0j],
+                                [0, (1, 2, 3, 4, 5, 6), OrderedDict((
+                                    ("ListSetInner", [[0, frozenset([1, 2, 3, 4, 5.0, 'more inner strings'])],
+                                                      [0, 1000000.0],
+                                                      {'Another inner string', 0.0},
+                                                      ]),
+                                    ("String1Inner", 'this is a inner string'),
+                                    ("nestedListsInner", [[0, 0],
+                                                          [0, 1 + 2.0j],
+                                                          [0, (1, 2, 3, 4, 5, 6)]])
+                                    ))
+                                 ]]
+                },
+            "nestedDict": {
+                "nestedDictItems": {
+                    "floatItem": 1.23,
+                    "frozen"   : frozenset({67, 78}),
+                    }
+                },
+            "Boolean1"  : (True, None, False),
+            }
+
+        testDict2 = {
+            "Boolean2"  : True,
+            "DictOuter" : {
+                "String1"    : 'this is a string',
+                "ListSet"    : [[0, {1, 2, 3, 4, 5.00000001, 'more strings'}],
+                                [0, 1000000.0],
+                                ['Another string', 0.0]],
+                "nestedLists": [[0, 0],
+                                [0, 1 + 2.000000001j],
+                                [0, (1, 2, 3, 4, 5, 6), OrderedDict((
+                                    ("ListSetInner", [[0, frozenset([1, 3, 2, 4, 5.000000001, 'more inner strings'])],
+                                                      [0, 1000000.0],
+                                                      {'Another inner string', 0.0},
+                                                      ]),
+                                    ("String1Inner", 'this is a inner string'),
+                                    ("nestedListsInner", [[0, 0],
+                                                          [0, 1 + 2.000000001j],
+                                                          [0, (1, 2, 3, 4, 5, 6)]])
+                                    ))
+                                 ]]
+                },
+            "nestedDict": {
+                "nestedDictItems": {
+                    "floatItem": 1.230000001,
+                    "frozen"   : frozenset({78, 67}),
+                    }
+                },
+            "Boolean1"  : (True, None, False),
+            }
+
+        options = dict()
+        options.identical = False
+        options.ignoreCase = True
+        options.almostEqual = True
+        options.maxRows = 5
+        options.places = 8
+
+        options.identical = False
+        options.ignoreCase = True  # does not count for dict.keys()
+        options.maxRows = 5
+
+        options.almostEqual = True
+        options.places = 5
+        print('almostEqual:{} dp:{} - {}'.format(options.almostEqual, options.places, _compareObjects(testDict1, testDict2, options)))
+        options.places = 10
+        print('almostEqual:{} dp:{} - {}'.format(options.almostEqual, options.places, _compareObjects(testDict1, testDict2, options)))
+
+        options.almostEqual = False
+        print('almostEqual:{} dp:{} - {}'.format(options.almostEqual, options.places, _compareObjects(testDict1, testDict2, options)))
+        print('almostEqual:{} dp:{} - {} (same object)'.format(options.almostEqual, options.places, _compareObjects(testDict1, testDict1, options)))
 
 
 #=========================================================================================
