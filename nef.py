@@ -149,7 +149,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-24 17:34:03 +0100 (Wed, June 24, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-25 10:46:01 +0100 (Thu, June 25, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -1364,7 +1364,7 @@ class Test_compareFiles(unittest.TestCase):
         # NOTE:ED - need to write some test cases here
         commandLineArguments = parser.parse_args('-Icf file1 file2 file3 -w outDir --verify'.split())
 
-    # @unittest.skip
+    @unittest.skip
     def test_compareObjects(self):
         """Test the compareObjects method
         """
