@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-19 20:41:48 +0100 (Tue, May 19, 2020) $"
+__dateModified__ = "$dateModified: 2020-06-25 13:16:38 +0100 (Thu, June 25, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -132,8 +132,13 @@ class Validator(object):
                     e += self._sf_category_name_mismatch(saveframe, checkName[0])
                     e += self._dict_nonallowed_keys(saveframe, mandatoryFields + optionalFields + loopNames, label=sf_name)
 
-                    # iterate through loops
                     loops = [kk for kk in saveframe.keys() if kk in loopNames]
+
+                    # check that all the mandatory loops have been included
+                    mandatoryLoops = [nm[CATEGORY] for nm in validFrame[NEF_LOOP].data if nm[IS_MANDATORY] is True]
+                    e += self._dict_missing_keys(loops, mandatoryLoops, label=sf_name, keyType='loop')
+
+                    # iterate through loops
                     for loop in loops:
 
                         # get the keys that belong to this loop
@@ -208,10 +213,19 @@ class Validator(object):
 
             return e
 
-    def _dict_missing_keys(self, dct, required_keys, label=None):
+    def _dict_missing_keys(self, dct, required_keys, label=None, keyType='label'):
         if label is None:
-            return ['Missing {} label.'.format(key) for key in required_keys if key not in dct]
-        return ['{}: missing {} label.'.format(label, key) for key in required_keys if key not in dct]
+            return ['Missing {} {}.'.format(key, keyType) for key in required_keys if key not in dct]
+        return ['{}: missing {} {}.'.format(label, key, keyType) for key in required_keys if key not in dct]
+
+    def _dict_duplicate_keys(self, dct, label=None, keyType='label'):
+        dctSet = set(dct)
+        if len(dct) == len(dctSet):
+            return []
+
+        if label is None:
+            return ['Duplicated {} {}.'.format(key, keyType) for key in dctSet if dct.count(key) > 1]
+        return ['{}: Duplicated {} {}.'.format(label, key, keyType) for key in dctSet if dct.count(key) > 1]
 
     def _dict_missing_value_with_key(self, dct, keys):
         errors = []
