@@ -18,7 +18,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-06-25 13:16:38 +0100 (Thu, June 25, 2020) $"
+__dateModified__ = "$dateModified: 2020-07-06 14:28:15 +0100 (Mon, July 06, 2020) $"
 __version__ = "$Revision: 3.0.1 $"
 #=========================================================================================
 # Created
@@ -119,7 +119,9 @@ class Validator(object):
                 if checkName and SF_CATEGORY in saveframe and saveframe[SF_CATEGORY] == checkName[0]:
 
                     ERROR_KEY = checkName[0]
-                    e = self._validation_errors[ERROR_KEY] = []
+                    if ERROR_KEY not in self._validation_errors:
+                        self._validation_errors[ERROR_KEY] = []
+                    e = self._validation_errors[ERROR_KEY]
 
                     # check items against loop_category = None, i.e., this saveframe
                     mandatoryFields = [nm[NAME] for nm in validFrame[NEF_ITEM].data if nm[IS_MANDATORY] is True and nm[LOOP_CATEGORY] is None]
