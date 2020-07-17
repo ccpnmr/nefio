@@ -1112,8 +1112,8 @@ if __name__ == '__main__':
 
     # define the NefImporter with standard logging
     test = NefImporter(errorLogging=el.NEF_STANDARD)
-    testPath = os.path.join(os.getcwd(), 'NEF', 'data_1_1', 'CCPN_Commented_Example.nef')
-    testPathOut = os.path.join(os.getcwd(), 'NEF', 'data_1_1', 'CCPN_Commented_Example_Out.nef')
+    testPath = os.path.join(os.getcwd(), 'NEF', 'data_1_1', 'CCPN_H1GI_clean.nef')
+    testPathOut = os.path.join(os.getcwd(), 'NEF', 'data_1_1', 'CCPN_H1GI_clean_extended.nef')
 
     if not os.path.exists(testPath):
         raise RuntimeError('Error: %s not found' % testPath)
@@ -1210,8 +1210,8 @@ if __name__ == '__main__':
     except Exception as es:
         print('Error: %s' % str(es))
 
-    print('Testing saveFile')
-    print('SAVE ', test.saveFile(testPathOut))
+    # print('Testing saveFile')
+    # print('SAVE ', test.saveFile(testPathOut))
     print(test.lastError)
 
     # test meta creation of category names
