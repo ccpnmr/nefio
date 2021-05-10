@@ -209,6 +209,7 @@ import sys
 import numpy as np
 from collections import OrderedDict
 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # this is a fix to get the import to work when running as a standalone
 # when importing into your own code, it can be safely removed
@@ -510,14 +511,19 @@ class NefImporter(el.ErrorLog):
             # initialise a basic object
             self.initialise()
 
+    def _logFunc(self, *args):
+        """Simple logger for CifDicConverter using _logError
+        """
+        self._logError(errorString=''.join([str(arg) for arg in args]))
+
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadValidateDictionary(self, fileName=None, mode='standard'):
         if not os.path.isfile(fileName):
-            raise ValueError('Error: file does not exist')
+            raise RuntimeError('Error: %s not found' % infile)
 
         with open(fileName) as fp:
             data = fp.read()
-        converter = Specification.CifDicConverter(data)
+        converter = Specification.CifDicConverter(data, logger=self._logFunc)
         converter.convertToNef()
         self._validateNefDict = converter.result
 
@@ -1173,7 +1179,6 @@ if __name__ == '__main__':
 
     # testing the different errors from searching for saveFrames
     if sf1 is not None:
-
         # get the list of tables
         print(sf1.name)
         print(sf1.getTableNames())

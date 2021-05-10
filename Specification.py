@@ -4,8 +4,9 @@
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2021"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -14,8 +15,8 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-03-18 18:28:52 +0000 (Wed, March 18, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__dateModified__ = "$dateModified: 2021-05-10 18:47:35 +0100 (Mon, May 10, 2021) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -87,21 +88,28 @@ class CifDicConverter(object):
            (if empty it belongs directly inside the saveframe)
         """
 
-    def __init__(self, inputText, skipExamples=True, additionalBlocks=()):
+    def __init__(self, inputText, skipExamples=True, additionalBlocks=(), logger=None):
         self.specification = GenericStarParser.parse(inputText)
         self.additionalBlocks = additionalBlocks
         self.keyTags = {}
         self.result = None
         self.skipExamples = skipExamples
         self._category2SaveFrame = {}
+        if logger and not callable(logger):
+            raise TypeError('logger must be callable')
+
+        self._logFunc = logger if logger else print
 
     def _logging(self, *args):
         """Log messages as required
         """
+        if not self._logFunc:
+            return
+
         try:
-            print('{}{}'.format(INFOPREFIX, ' '.join([str(arg) for arg in args])))
+            self._logFunc('{}{}'.format(INFOPREFIX, ' '.join([str(arg) for arg in args])))
         except Exception as es:
-            print('{}>>> Error during logging: {}'.format(INFOPREFIX, str(es)))
+            self._logFunc('{}>>> Error during logging: {}'.format(INFOPREFIX, str(es)))
 
     def convertToNef(self):
         """Convert RCSB .cif file into a nef specification summary file
@@ -309,7 +317,7 @@ class CifDicConverter(object):
         while len(examples) < 2:
             examples.append(None)
 
-        # Add iten to loop, making it if necessary
+        # Add item to loop, making it if necessary
         specificationLoop = saveFrame.get('nef_item')
         if specificationLoop is None:
             specificationLoop = saveFrame.newLoop('nef_item', ('name', 'loop_category', 'type_code',
@@ -346,7 +354,7 @@ def extractByCategories(rcsbDataBlock):
 
 
 def transferLoop(genericContainer, saveFrame, inputTags):
-    """Transfer _category.tag_x, ... to loop named category with tags tag_x etc.
+    """Transfer category.tag_x, ... to loop named category with tags tag_x etc.
     """
     set1 = set()
     columns = []
