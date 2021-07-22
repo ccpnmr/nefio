@@ -206,8 +206,9 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 import os
 import sys
+import re
 import numpy as np
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -482,6 +483,48 @@ NEF_RETURNALL = 'all'
 NEF_RETURNNEF = 'nef_'
 NEF_RETURNOTHER = 'other'
 NEF_PREFIX = 'nef_'
+
+
+def _tryNumber(value):
+    if isinstance(value, str):
+        ll = value.rsplit('`', 2)
+        if len(ll) == 3:
+            # name is of form abc`xyz`
+            try:
+                return int(ll[1])
+            except ValueError:
+                pass
+
+
+REGEXREMOVEENDQUOTES = u'\`\d*`+?'
+_nameFromCategory = namedtuple('_nameFromCategory', ('framecode', 'frameName', 'subname', 'prefix', 'postfix', 'precode', 'postcode', 'category'))
+
+
+def _saveFrameNameFromCategory(saveFrame: StarIo.NmrSaveFrame):
+    """Parse the saveframe name to extract pre- and post- numbering
+    necessary for restraint and spectrum saveframe names
+    """
+    category = saveFrame['sf_category']
+    framecode = saveFrame['sf_framecode']
+    # frameName = framecode[len(category) + 1:]
+    return _getNameFromCategory(category, framecode)
+
+
+def _getNameFromCategory(category, framecode):
+    # check for any occurrences of `n` in the saveframe name and keep for later reference
+    frameName = framecode[len(category) + 1:]
+
+    names = re.split(REGEXREMOVEENDQUOTES, frameName)
+    if 0 <= len(names) > 3:
+        raise TypeError('bad splitting of saveframe name {}'.format(framecode))
+    subName = re.sub(REGEXREMOVEENDQUOTES, '', frameName)
+    matches = [mm for mm in re.finditer(REGEXREMOVEENDQUOTES, frameName)]
+    prefix = matches[0].group() if matches and matches[0] and matches[0].span()[0] == 0 else ''
+    preSerial = _tryNumber(prefix)
+    postfix = matches[-1].group() if matches and matches[-1] and matches[-1].span()[1] == len(frameName) else ''
+    postSerial = _tryNumber(postfix)
+
+    return _nameFromCategory(framecode, frameName, subName, prefix, postfix, preSerial, postSerial, category)
 
 
 class NefImporter(el.ErrorLog):
@@ -869,6 +912,34 @@ class NefImporter(el.ErrorLog):
         if name in self._nefDict:
             del self._nefDict[name]
             return True
+
+    @el.ErrorLog(errorCode=el.NEFERROR_SAVEFRAMEDOESNOTEXIST)
+    def renameSaveFrame(self, name, newName):
+        # return True if the saveFrame exists, else False
+        name = self._insertPrefix(name)
+        if name in self._nefDict and newName not in self._nefDict:
+            saveFrame = self._nefDict[name]
+
+            _frameID = _saveFrameNameFromCategory(saveFrame)
+            framecode, frameName, subName, prefix, postfix, preSerial, postSerial, category = _frameID
+
+            newSaveFrameName = '_'.join([category, prefix + newName + postfix])
+
+            saveFrame.name = newSaveFrameName
+            saveFrame['sf_framecode'] = newSaveFrameName
+
+            data = [(k, val) for k, val in self._nefDict.items()]
+            for ii, (k, val) in enumerate(data):
+                if val == saveFrame:
+                    data[ii] = (newSaveFrameName, val)
+                    # should only be one
+                    break
+            newData = OrderedDict((k, val) for k, val in data)
+            self._nefDict.clear()
+            self._nefDict.update(newData)
+
+            if saveFrame.get('name'):
+                saveFrame['name'] = newName
 
     @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTENAMES)
     def getAttributeNames(self):
