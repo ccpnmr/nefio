@@ -813,6 +813,16 @@ class NefImporter(el.ErrorLog):
 
         return True
 
+    @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
+    def loadText(self, text, mode='standard'):
+        nefDataExtent = StarIo.parseNef(text=text, mode=mode)
+        self._nefDict = list(nefDataExtent.values())
+        if len(self._nefDict) > 1:
+            print('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+        self._nefDict = self._nefDict[0]
+
+        return True
+
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORSAVINGFILE)
     def saveFile(self, fileName=None):
         with open(fileName, 'w') as op:
@@ -851,6 +861,14 @@ class NefImporter(el.ErrorLog):
         # return the saveFrame 'name'
         name = self._insertPrefix(name)
         return NefDict(self._nefDict[name], errorLogging=self.loggingMode, hidePrefix=self._hidePrefix)
+
+    @el.ErrorLog(errorCode=el.NEFERROR_SAVEFRAMEDOESNOTEXIST)
+    def deleteSaveFrame(self, name):
+        # return True if the saveFrame exists (and delete), else False
+        name = self._insertPrefix(name)
+        if name in self._nefDict:
+            del self._nefDict[name]
+            return True
 
     @el.ErrorLog(errorCode=el.NEFERROR_READATTRIBUTENAMES)
     def getAttributeNames(self):
