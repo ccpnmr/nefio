@@ -561,10 +561,12 @@ class NefImporter(el.ErrorLog):
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadValidateDictionary(self, fileName=None, mode='standard'):
-        if not os.path.isfile(fileName):
-            raise RuntimeError('Error: %s not found' % infile)
+        _path = os.path.expanduser(fileName)
+        _path = os.path.normpath(_path)
+        if not os.path.isfile(_path):
+            raise RuntimeError('File "%s" not found' % _path)
 
-        with open(fileName) as fp:
+        with open(_path) as fp:
             data = fp.read()
         converter = Specification.CifDicConverter(data, logger=self._logFunc)
         converter.convertToNef()

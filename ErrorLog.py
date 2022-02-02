@@ -4,8 +4,9 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
+__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2022"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
 __licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
@@ -13,9 +14,9 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:41 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2022-02-02 20:38:17 +0000 (Wed, February 02, 2022) $"
+__version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -117,9 +118,14 @@ class ErrorLog():
             try:
                 obj._logError(errorCode=NEFVALID)
                 return func(obj, *args, **kwargs)
-            except Exception as es:
+
+            except RuntimeError as es:
                 _type, _value, _traceback = sys.exc_info()
-                obj._logError(errorCode=NEFERROR_BADFUNCTION, errorString=str(obj) + str(_type) + str(es))
+                _errString = '%s.%s: %s' % (obj.__class__.__name__,
+                                            func.__name__,
+                                            str(es)
+                                            )
+                obj._logError(errorCode=self._lastError, errorString=_errString)
                 return None
 
         return errortesting
@@ -198,11 +204,11 @@ class ErrorLog():
             self._lastError = errorCode
             if not errorString:
                 errorString = self.NEFERRORS[errorCode]
-            self._lastErrorString = 'runtimeError: ' + str(errorCode) + ' ' + errorString + '\n'
+            self._lastErrorString = 'NefRunTimeError[%r]:\n%s' % \
+                                    (self.NEFERRORS[errorCode], errorString)
+
             if self._loggingMode != NEF_SILENT:
-                try:
-                    self._logOutput(self._lastErrorString)
-                except Exception as es:
-                    raise es
+               self._logOutput(self._lastErrorString)
+
             if self._loggingMode == NEF_STRICT:
-                raise Exception(str(self._lastErrorString))
+                raise RuntimeError(str(self._lastErrorString))
