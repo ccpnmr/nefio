@@ -851,7 +851,7 @@ class NefImporter(el.ErrorLog):
         nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
         self._nefDict = list(nefDataExtent.values())
         if len(self._nefDict) > 1:
-            print('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+            sys.stderr.write('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
         self._nefDict = self._nefDict[0]
 
         return True
@@ -861,7 +861,7 @@ class NefImporter(el.ErrorLog):
         nefDataExtent = StarIo.parseNef(text=text, mode=mode)
         self._nefDict = list(nefDataExtent.values())
         if len(self._nefDict) > 1:
-            print('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.')
+            sys.stderr.write('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
         self._nefDict = self._nefDict[0]
 
         return True
@@ -1140,7 +1140,7 @@ class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
     def setTable(self, name):
         # add the table 'name' to the saveFrame, or replace the existing
         # does this need to be here or in the main class?
-        print('Not implemented yet.')
+        sys.stderr.write('Not implemented yet.\n')
 
     def _convertToPandas(self, sf):
         """
