@@ -519,7 +519,7 @@ class NefImporter(el.ErrorLog):
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadValidateDictionary(self, fileName=None, mode='standard'):
         if not os.path.isfile(fileName):
-            raise RuntimeError('Error: %s not found' % infile)
+            raise RuntimeError('Error: %s not found' % fileName)
 
         with open(fileName) as fp:
             data = fp.read()
