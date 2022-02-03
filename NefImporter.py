@@ -256,6 +256,8 @@ PATCH_LEVEL = '4'
 __nef_version__ = '.'.join((MAJOR_VERSION, MINOR_VERSION))
 # __version__ = '.'.join( (__nef_version__, PATCH_LEVEL) )
 
+from . import NEF_ROOT_PATH
+NEF_DEFAULT_DICT = os.path.join(NEF_ROOT_PATH, 'mmcif_nef_v1_1.dic')
 
 NEF_CATEGORIES = [('nef_nmr_meta_data', 'get_nmr_meta_data'),
                   ('nef_molecular_system', 'get_molecular_systems'),
@@ -532,22 +534,26 @@ class NefImporter(el.ErrorLog):
 
     # put functions in here to read the contents of the dict.
     # superclassed from DataBlock which is of type StarContainer
-    def __init__(self, name=None,
+    def __init__(self,
                  programName='Unknown',
                  programVersion='Unknown',
                  initialise=True,
                  errorLogging=el.NEF_STANDARD,
-                 hidePrefix=True):
+                 hidePrefix = True,
+                 ):
 
         el.ErrorLog.__init__(self, loggingMode=errorLogging)
 
-        self.name = name
-        self._nefDict = StarIo.NmrDataBlock()
-        self._validateNefDict = StarIo.NmrDataBlock()
+        # self.name = name
         self.programName = programName
         self.programVersion = programVersion
         self._hidePrefix = hidePrefix
+
+        self._validateNefDict = None
+        self.loadValidateDictionary()
+
         self._saveFrameNames = {}
+        self._nefDict = StarIo.NmrDataBlock()
         self._valid = Validator.Validator(self._nefDict)
 
         if initialise:
@@ -561,10 +567,19 @@ class NefImporter(el.ErrorLog):
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadValidateDictionary(self, fileName=None, mode='standard'):
+        """Load and parse a Nef dictionary file (in star format) to
+        validate the nef file.
+
+        :param fileName: path of Nef dictionary file; defaults to current
+                         definition dictionary file
+        :param mode:
+        """
+        if fileName is None:
+            fileName = NEF_DEFAULT_DICT
         _path = os.path.expanduser(fileName)
         _path = os.path.normpath(_path)
         if not os.path.isfile(_path):
-            raise RuntimeError('File "%s" not found' % _path)
+            raise RuntimeError('Nef dictionary file "%s" not found' % _path)
 
         with open(_path) as fp:
             data = fp.read()
@@ -574,13 +589,20 @@ class NefImporter(el.ErrorLog):
 
         return True
 
+    def _doValidate(self) -> bool:
+        """Validate the current state of self._nefDict
+        :return True if nefDict validated successfully
+        """
+        result = self._valid.isValid(self._nefDict, self._validateNefDict)
+        return result
+
     @property
-    def isValid(self):
+    def isValid(self) -> bool:
         """
         Check whether the Nef object contains the required information
         :return True or False:
         """
-        return self._valid.isValid(self._nefDict, self._validateNefDict)
+        return self._doValidate()
 
     @property
     def validErrorLog(self):
@@ -851,20 +873,22 @@ class NefImporter(el.ErrorLog):
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadFile(self, fileName=None, mode='standard'):
         nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
-        self._nefDict = list(nefDataExtent.values())
-        if len(self._nefDict) > 1:
-            sys.stderr.write('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
-        self._nefDict = self._nefDict[0]
+        _dataBlocks = list(nefDataExtent.values())
+        if len(_dataBlocks) > 1:
+            raise RuntimeError('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
+        self._nefDict = _dataBlocks[0]
+        self._doValidate()
 
         return True
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadText(self, text, mode='standard'):
         nefDataExtent = StarIo.parseNef(text=text, mode=mode)
-        self._nefDict = list(nefDataExtent.values())
-        if len(self._nefDict) > 1:
-            sys.stderr.write('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
-        self._nefDict = self._nefDict[0]
+        _dataBlocks = list(nefDataExtent.values())
+        if len(_dataBlocks) > 1:
+            raise RuntimeError('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
+        self._nefDict = _dataBlocks[0]
+        self._doValidate()
 
         return True
 

@@ -15,7 +15,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-02-02 20:38:17 +0000 (Wed, February 02, 2022) $"
+__dateModified__ = "$dateModified: 2022-02-03 16:59:22 +0000 (Thu, February 03, 2022) $"
 __version__ = "$Revision: 3.0.4 $"
 #=========================================================================================
 # Created
@@ -29,6 +29,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import sys
 from functools import wraps
 
+from .GenericStarParser import StarSyntaxError
 
 NEF_STANDARD = 'standard'
 NEF_SILENT = 'silent'
@@ -75,7 +76,7 @@ class ErrorLog():
                 'strict'        errors are logged to stderr and errors are raised
                                 to be handled by the calling functions
 
-      mode = logginMode     return the current mode.
+      mode = loggingMode     return the current mode.
     """
     _availableModes = (NEF_STANDARD, NEF_SILENT, NEF_STRICT)
     NEFERRORS = {NEFERROR_BADADDSAVEFRAME      : 'bad add saveFrame',
@@ -119,7 +120,7 @@ class ErrorLog():
                 obj._logError(errorCode=NEFVALID)
                 return func(obj, *args, **kwargs)
 
-            except RuntimeError as es:
+            except (RuntimeError, StarSyntaxError) as es:
                 _type, _value, _traceback = sys.exc_info()
                 _errString = '%s.%s: %s' % (obj.__class__.__name__,
                                             func.__name__,
@@ -134,8 +135,9 @@ class ErrorLog():
     def logger(self):
         """
         Return the current logging function
-        default is set to: sys.stderr.write
-        :return func:
+        :return func; defaults to sys.stderr.write
+                profile of func:
+                func(value:str)
         """
         # return the current logger
         return self._logOutput
@@ -145,6 +147,8 @@ class ErrorLog():
         """
         Set the current logging function
         :param func:
+               profile of func:
+               func(value:str)
         """
         self._logOutput = func
 
