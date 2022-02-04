@@ -554,13 +554,15 @@ class NefImporter(el.ErrorLog):
 
         self._validateNefDict = None
         self.loadValidateDictionary()
+        self._validator = Validator.Validator()
+        self._isValid = False
 
+        # No data read so far
         self._saveFrameNames = {}
-        self._nefDict = StarIo.NmrDataBlock(name='emptyDataBlock')
-        self._initialise()  # initialise a basic object
-        self._valid = Validator.Validator(self._nefDict)
+        self._nefDict = None
+        # self._initialise()  # initialise a basic object
 
-        self._path = None  # No data read so far
+        self._path = None
 
     @property
     def data(self) -> StarIo.NmrDataBlock:
@@ -612,7 +614,8 @@ class NefImporter(el.ErrorLog):
         """Validate the current state of self._nefDict
         :return True if nefDict validated successfully
         """
-        result = self._valid.isValid(self._nefDict, self._validateNefDict)
+        result = self._validator.isValid(self._nefDict, self._validateNefDict)
+        self._isValid = result
         return result
 
     @property
@@ -621,7 +624,7 @@ class NefImporter(el.ErrorLog):
         Check whether the Nef object contains the required information
         :return True or False:
         """
-        return self._doValidate()
+        return self._isValid
 
     @property
     def validErrorLog(self):
@@ -629,7 +632,7 @@ class NefImporter(el.ErrorLog):
         Return the error log from checking validity
         :return dict:
         """
-        return self._valid._validation_errors
+        return self._validator._validation_errors
 
     def _namedToNefDict(self, frame):
         # change a saveFrame into a normal OrderedDict
