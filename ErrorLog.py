@@ -4,18 +4,19 @@ Module Documentation here
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2019"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
                  "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2017-07-07 16:32:41 +0100 (Fri, July 07, 2017) $"
-__version__ = "$Revision: 3.0.0 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2022-02-07 17:13:54 +0000 (Mon, February 07, 2022) $"
+__version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -28,6 +29,7 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 import sys
 from functools import wraps
 
+from .GenericStarParser import StarSyntaxError
 
 NEF_STANDARD = 'standard'
 NEF_SILENT = 'silent'
@@ -74,7 +76,7 @@ class ErrorLog():
                 'strict'        errors are logged to stderr and errors are raised
                                 to be handled by the calling functions
 
-      mode = logginMode     return the current mode.
+      mode = loggingMode     return the current mode.
     """
     _availableModes = (NEF_STANDARD, NEF_SILENT, NEF_STRICT)
     NEFERRORS = {NEFERROR_BADADDSAVEFRAME      : 'bad add saveFrame',
@@ -117,9 +119,14 @@ class ErrorLog():
             try:
                 obj._logError(errorCode=NEFVALID)
                 return func(obj, *args, **kwargs)
-            except Exception as es:
+
+            except (RuntimeError, StarSyntaxError) as es:
                 _type, _value, _traceback = sys.exc_info()
-                obj._logError(errorCode=NEFERROR_BADFUNCTION, errorString=str(obj) + str(_type) + str(es))
+                _errString = '%s.%s: %s' % (obj.__class__.__name__,
+                                            func.__name__,
+                                            str(es)
+                                            )
+                obj._logError(errorCode=self._lastError, errorString=_errString)
                 return None
 
         return errortesting
@@ -128,8 +135,9 @@ class ErrorLog():
     def logger(self):
         """
         Return the current logging function
-        default is set to: sys.stderr.write
-        :return func:
+        :return func; defaults to sys.stderr.write
+                profile of func:
+                func(value:str)
         """
         # return the current logger
         return self._logOutput
@@ -139,6 +147,8 @@ class ErrorLog():
         """
         Set the current logging function
         :param func:
+               profile of func:
+               func(value:str)
         """
         self._logOutput = func
 
@@ -198,11 +208,11 @@ class ErrorLog():
             self._lastError = errorCode
             if not errorString:
                 errorString = self.NEFERRORS[errorCode]
-            self._lastErrorString = 'runtimeError: ' + str(errorCode) + ' ' + errorString + '\n'
+            self._lastErrorString = 'NefRunTimeError[%r]:\n%s' % \
+                                    (self.NEFERRORS[errorCode], errorString)
+
             if self._loggingMode != NEF_SILENT:
-                try:
-                    self._logOutput(self._lastErrorString)
-                except Exception as es:
-                    raise es
+               self._logOutput(self._lastErrorString)
+
             if self._loggingMode == NEF_STRICT:
-                raise Exception(str(self._lastErrorString))
+                raise RuntimeError(str(self._lastErrorString))

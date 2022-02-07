@@ -209,6 +209,7 @@ import sys
 import re
 import numpy as np
 from collections import OrderedDict, namedtuple
+from pathlib import Path
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -250,12 +251,14 @@ from . import Validator
 from . import Specification
 
 
-MAJOR_VERSION = '0'
-MINOR_VERSION = '8'
-PATCH_LEVEL = '4'
+MAJOR_VERSION = '1'
+MINOR_VERSION = '1'
+PATCH_LEVEL = '0'
 __nef_version__ = '.'.join((MAJOR_VERSION, MINOR_VERSION))
 # __version__ = '.'.join( (__nef_version__, PATCH_LEVEL) )
 
+from . import NEF_ROOT_PATH
+NEF_DEFAULT_DICT = os.path.join(NEF_ROOT_PATH, 'mmcif_nef_v1_1.dic')
 
 NEF_CATEGORIES = [('nef_nmr_meta_data', 'get_nmr_meta_data'),
                   ('nef_molecular_system', 'get_molecular_systems'),
@@ -528,31 +531,50 @@ def _getNameFromCategory(category, framecode):
 
 
 class NefImporter(el.ErrorLog):
-    """Top level data block for accessing object tree"""
+    """Object for accessing Nef data tree.
+    The Nef data consist of a single NmrStar dataBlock (an OrderedDict),
+    with (saveFrameName, NmrSaveFrame) key,value pairs
+    """
 
     # put functions in here to read the contents of the dict.
     # superclassed from DataBlock which is of type StarContainer
-    def __init__(self, name=None,
+    def __init__(self,
                  programName='Unknown',
                  programVersion='Unknown',
-                 initialise=True,
                  errorLogging=el.NEF_STANDARD,
-                 hidePrefix=True):
+                 hidePrefix = True,
+                 ):
 
         el.ErrorLog.__init__(self, loggingMode=errorLogging)
 
-        self.name = name
-        self._nefDict = StarIo.NmrDataBlock()
-        self._validateNefDict = StarIo.NmrDataBlock()
+        # self.name = name
         self.programName = programName
         self.programVersion = programVersion
         self._hidePrefix = hidePrefix
-        self._saveFrameNames = {}
-        self._valid = Validator.Validator(self._nefDict)
 
-        if initialise:
-            # initialise a basic object
-            self.initialise()
+        self._validateNefDict = None
+        self.loadValidateDictionary()
+        self._validator = Validator.Validator()
+        self._isValid = False
+
+        # No data read so far
+        self._saveFrameNames = {}
+        self._nefDict = None
+        # self._initialise()  # initialise a basic object
+
+        self._path = None
+
+    @property
+    def data(self) -> StarIo.NmrDataBlock:
+        """Return the NmrDataBlock instance
+        """
+        return self._nefDict
+
+    @property
+    def path(self) -> str:
+        """:return the path of the last read Nef file (empty if undefined)
+        """
+        return '' if self._path is None else self._path
 
     def _logFunc(self, *args):
         """Simple logger for CifDicConverter using _logError
@@ -561,10 +583,26 @@ class NefImporter(el.ErrorLog):
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadValidateDictionary(self, fileName=None, mode='standard'):
-        if not os.path.isfile(fileName):
-            raise RuntimeError('Error: %s not found' % fileName)
+        """Load and parse a Nef dictionary file (in star format) to
+        validate the nef file.
 
-        with open(fileName) as fp:
+        :param fileName: path of Nef dictionary file; defaults to current
+                         definition dictionary file
+        :param mode:
+        """
+        if fileName is None:
+            fileName = NEF_DEFAULT_DICT
+
+        if not isinstance(fileName, (str, Path)):
+            raise RuntimeError('Invalid Nef dictionary file %r' % fileName)
+        fileName = str(fileName)  # convert any Path instance, as the downstream routines may fall over
+
+        _path = os.path.expanduser(fileName)
+        _path = os.path.normpath(_path)
+        if not os.path.isfile(_path):
+            raise RuntimeError('Nef dictionary file "%s" not found' % fileName)
+
+        with open(_path) as fp:
             data = fp.read()
         converter = Specification.CifDicConverter(data, logger=self._logFunc)
         converter.convertToNef()
@@ -572,13 +610,21 @@ class NefImporter(el.ErrorLog):
 
         return True
 
+    def _doValidate(self) -> bool:
+        """Validate the current state of self._nefDict
+        :return True if nefDict validated successfully
+        """
+        result = self._validator.isValid(self._nefDict, self._validateNefDict)
+        self._isValid = result
+        return result
+
     @property
-    def isValid(self):
+    def isValid(self) -> bool:
         """
         Check whether the Nef object contains the required information
         :return True or False:
         """
-        return self._valid.isValid(self._nefDict, self._validateNefDict)
+        return self._isValid
 
     @property
     def validErrorLog(self):
@@ -586,7 +632,7 @@ class NefImporter(el.ErrorLog):
         Return the error log from checking validity
         :return dict:
         """
-        return self._valid._validation_errors
+        return self._validator._validation_errors
 
     def _namedToNefDict(self, frame):
         # change a saveFrame into a normal OrderedDict
@@ -684,7 +730,7 @@ class NefImporter(el.ErrorLog):
         """
         return self._getListType(NEF_CATEGORIES[7][0])
 
-    def initialise(self):
+    def _initialise(self):
         """
         Initialise a new NefImporter object with a starting saveFrame
         """
@@ -847,22 +893,42 @@ class NefImporter(el.ErrorLog):
             self._nefDict = None
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
-    def loadFile(self, fileName=None, mode='standard'):
-        nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
-        self._nefDict = list(nefDataExtent.values())
-        if len(self._nefDict) > 1:
-            sys.stderr.write('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
-        self._nefDict = self._nefDict[0]
+    def loadFile(self, fileName=None, mode='standard') -> StarIo.NmrDataBlock:
+        """Load and parse Nef-file fileName
+        :param fileName: path to a Nef-file
+        :return a NmrDataBlock instance
+        """
+        if not isinstance(fileName, (str, Path)):
+            raise RuntimeError('Invalid Nef file %r' % fileName)
+        fileName = str(fileName)  # convert any Path instance, as the downstream routines may fall over
 
-        return True
+        _path = os.path.expanduser(fileName)
+        _path = os.path.normpath(_path)
+        if not os.path.isfile(_path):
+            raise RuntimeError('Nef file "%s" not found' % fileName)
+
+        nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
+        _dataBlocks = list(nefDataExtent.values())
+        if len(_dataBlocks) > 1:
+            raise RuntimeError('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
+        self._nefDict = _dataBlocks[0]
+        self._path = fileName
+        self._doValidate()
+        return self.data
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
-    def loadText(self, text, mode='standard'):
+    def loadText(self, text, mode='standard') -> StarIo.NmrDataBlock:
+        """Load and parse Nef-formatted text
+        :param text: Nef-formatted text
+        :return a NmrDataBlock instance
+        """
         nefDataExtent = StarIo.parseNef(text=text, mode=mode)
-        self._nefDict = list(nefDataExtent.values())
-        if len(self._nefDict) > 1:
-            sys.stderr.write('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
-        self._nefDict = self._nefDict[0]
+        _dataBlocks = list(nefDataExtent.values())
+        if len(_dataBlocks) > 1:
+            raise RuntimeError('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
+        self._nefDict = _dataBlocks[0]
+        self._path = 'loadedFromText'
+        self._doValidate()
 
         return True
 
@@ -959,10 +1025,13 @@ class NefImporter(el.ErrorLog):
 
     @property
     def hidePrefix(self):
-        # return the current hidePrefix state
-        # True - Nef prefixes 'nef_' are hidden
-        # False - Nef prefixes 'nef_' can be seen
-        # prefixes are still used in the saveFrames bit not seen in general use
+        """defines the current hidePrefix state
+        True - Nef prefixes 'nef_' are hidden
+        False - Nef prefixes 'nef_' are not hidden
+        prefixes are still used in the saveFrames bit not seen in general use
+
+        :return: the current hidePrefix state
+        """
         return self._hidePrefix
 
     @hidePrefix.setter
@@ -974,8 +1043,14 @@ class NefImporter(el.ErrorLog):
         if isinstance(newPrefix, bool):
             self._hidePrefix = newPrefix
 
-    def getName(self):
-        return self._nefDict.name if self._nefDict else ''
+    def getName(self, prePend=False) -> str:
+        """Get the name as defined by the NmrDataBlock, optionally pre-pended with 'nefData_'
+        :return the name  or '' if undefined
+        """
+        if self.data is None or self.data.name is None or len(self.data.name) == 0:
+            return ''
+        name = str(self.data.name) if not prePend else 'nefData_' + str(self.data.name)
+        return name
 
     def _attachReader(self, reader):
         """attach a reader method
@@ -1013,6 +1088,10 @@ class NefImporter(el.ErrorLog):
         if hasattr(self, '_clearNef'):
             return self._clearNef(project, *args, **kwds)
 
+    def __str__(self):
+        return '<%s: errorLogging=%r; path=%s>' % (self.__class__.__name__, self._loggingMode, self._path)
+
+    __repr__ = __str__
 
 class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
     """
