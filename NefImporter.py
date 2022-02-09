@@ -930,7 +930,7 @@ class NefImporter(el.ErrorLog):
         self._path = 'loadedFromText'
         self._doValidate()
 
-        return True
+        return self.data
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORSAVINGFILE)
     def saveFile(self, fileName=None):
