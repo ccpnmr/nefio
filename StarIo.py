@@ -48,7 +48,7 @@ __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, 
 # Last code modification
 #=========================================================================================
 __modifiedBy__ = "$modifiedBy: Geerten Vuister $"
-__dateModified__ = "$dateModified: 2022-02-07 17:13:54 +0000 (Mon, February 07, 2022) $"
+__dateModified__ = "$dateModified: 2022-02-17 19:09:51 +0000 (Thu, February 17, 2022) $"
 __version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
@@ -61,8 +61,6 @@ __date__ = "$Date: 2017-04-07 10:28:41 +0000 (Fri, April 07, 2017) $"
 
 # NB Assumes that file was parsed with lowercaseTags = True
 
-
-# TODO NBNB some longer variable names;
 
 import keyword
 import os
@@ -94,28 +92,32 @@ def parseNmrStar(text, mode='standard'):
     return result
 
 
-def parseNef(text, mode='standard'):
-    """load NEF from string"""
+def parseNmrStarFile(fileName, mode='standard', wrapInDataBlock=False):
+    """parse NMRSTAR from file.
+    :param fileName: path of the star-file to parse
+    :param mode: parsing mode: any of ('lenient', 'strict', 'standard', 'IUCr')
+    :param wrapInDataBlock: flag; if True a missing DataBlock start will be added
+    :return NmrDataBlock instance
+    """
+    with open(fileName) as fp:
+        text = fp.read()
+
+    if wrapInDataBlock and 'save_' in text and not 'data_' in text:
+        text = "data_dummy \n\n" + text
 
     dataExtent = GenericStarParser.parse(text, mode)
-    converter = _StarDataConverter(dataExtent, fileType='nef')
+    converter = _StarDataConverter(dataExtent, fileType='star')
     converter.preValidate()
     result = converter.convert()
     #
     return result
 
 
-def parseNmrStarFile(fileName, mode='standard', wrapInDataBlock=False):
-    """parse NMRSTAR from file
+def parseNef(text, mode='standard'):
+    """load NEF from string"""
 
-    if wrapInDataBlock missing DataBlock start will be provided"""
-    with open(fileName) as fp:
-        text = fp.read()
-
-    if wrapInDataBlock and 'save_' in text and not 'data_' in text:
-        text = "data_dummy \n\n" + text
     dataExtent = GenericStarParser.parse(text, mode)
-    converter = _StarDataConverter(dataExtent)
+    converter = _StarDataConverter(dataExtent, fileType='nef')
     converter.preValidate()
     result = converter.convert()
     #

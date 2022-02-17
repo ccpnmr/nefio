@@ -113,18 +113,19 @@ from __future__ import unicode_literals
 #=========================================================================================
 # Licence, Reference and Credits
 #=========================================================================================
-__copyright__ = "Copyright (C) CCPN project (http://www.ccpn.ac.uk) 2014 - 2020"
-__credits__ = ("Ed Brooksbank, Luca Mureddu, Timothy J Ragan & Geerten W Vuister")
-__licence__ = ("CCPN licence. See http://www.ccpn.ac.uk/v3-software/downloads/license")
+__copyright__ = "Copyright (C) CCPN project (https://www.ccpn.ac.uk) 2014 - 2022"
+__credits__ = ("Ed Brooksbank, Joanna Fox, Victoria A Higman, Luca Mureddu, Eliza Płoskoń",
+               "Timothy J Ragan, Brian O Smith, Gary S Thompson & Geerten W Vuister")
+__licence__ = ("CCPN licence. See https://ccpn.ac.uk/software/licensing/")
 __reference__ = ("Skinner, S.P., Fogh, R.H., Boucher, W., Ragan, T.J., Mureddu, L.G., & Vuister, G.W.",
                  "CcpNmr AnalysisAssign: a flexible platform for integrated NMR analysis",
                  "J.Biomol.Nmr (2016), 66, 111-124, http://doi.org/10.1007/s10858-016-0060-y")
 #=========================================================================================
 # Last code modification
 #=========================================================================================
-__modifiedBy__ = "$modifiedBy: Ed Brooksbank $"
-__dateModified__ = "$dateModified: 2020-05-20 17:56:58 +0100 (Wed, May 20, 2020) $"
-__version__ = "$Revision: 3.0.1 $"
+__modifiedBy__ = "$modifiedBy: Geerten Vuister $"
+__dateModified__ = "$dateModified: 2022-02-17 19:09:51 +0000 (Thu, February 17, 2022) $"
+__version__ = "$Revision: 3.1.0 $"
 #=========================================================================================
 # Created
 #=========================================================================================
@@ -184,26 +185,30 @@ _defaultIndent = ' ' * 3
 _defaultSeparator = ' ' * 2
 
 # Options corresponding to the supported parser modes: 'standard', 'lenient', 'strict', and 'IUCr'
+PARSER_MODE_LENIENT = 'lenient'
+PARSER_MODE_STANDARD = 'standard'
+PARSER_MODE_STRICT = 'strict'
+PARSER_MODE_IUCR = 'IUCr'
 _parserModeOptions = {
-    'lenient' : {
+    PARSER_MODE_LENIENT : {
         'enforceSaveFrameStop'     : False,
         'enforceLoopStop'          : False,
         'padIncompleteLoops'       : True,
         'allowSquareBracketStrings': True
         },
-    'strict'  : {
+    PARSER_MODE_STRICT  : {
         'enforceSaveFrameStop'     : True,
         'enforceLoopStop'          : True,
         'padIncompleteLoops'       : False,
         'allowSquareBracketStrings': False
         },
-    'standard': {
+    PARSER_MODE_STANDARD: {
         'enforceSaveFrameStop'     : True,
         'enforceLoopStop'          : False,
         'padIncompleteLoops'       : False,
         'allowSquareBracketStrings': True
         },
-    'IUCr'    : {
+    PARSER_MODE_IUCR    : {
         'enforceSaveFrameStop'     : True,
         'enforceLoopStop'          : False,
         'padIncompleteLoops'       : False,
@@ -211,7 +216,7 @@ _parserModeOptions = {
     }
 
 
-def parse(text, mode='standard'):
+def parse(text, mode=PARSER_MODE_STANDARD):
     """Parse STAR text string 'text'.
     Standard settings allow skipping 'stop_' tags and strings starting with '[' or ']',
     but require 'save_' termination of SaveFrames and throw an error if the number of loop
@@ -225,17 +230,15 @@ def parse(text, mode='standard'):
 
     try:
         options = _parserModeOptions[mode]
-    except KeyError:
-        raise ValueError(
-                "illegal parser mode : %s  Only modes 'lenient', 'strict', 'standard', 'IUCr' allowed"
-                % repr(mode)
-                )
 
-    #
+    except KeyError:
+        _modes = tuple(_parserModeOptions.keys())
+        raise ValueError( "illegal parser mode : %s  Only modes %r allowed" % (repr(mode), _modes))
+
     return GeneralStarParser(text, **options).parse()
 
 
-def parseFile(fileName, mode='standard'):
+def parseFile(fileName, mode=PARSER_MODE_STANDARD):
     """load generic STAR file and parse the contents"""
 
     with open(fileName) as fp:
