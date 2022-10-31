@@ -559,7 +559,7 @@ class NefImporter(el.ErrorLog):
 
         # No data read so far
         self._saveFrameNames = {}
-        self._nefDict = None
+        self._nefDict = {}
         # self._initialise()  # initialise a basic object
 
         self._path = None
@@ -890,7 +890,7 @@ class NefImporter(el.ErrorLog):
                 self._nefDict = dbs[0]
         else:
             self._logError(errorCode=el.NEFERROR_BADFROMSTRING)
-            self._nefDict = None
+            self._nefDict = {}
 
     @el.ErrorLog(errorCode=el.NEFERROR_ERRORLOADINGFILE)
     def loadFile(self, fileName=None, mode='standard') -> StarIo.NmrDataBlock:
@@ -947,7 +947,10 @@ class NefImporter(el.ErrorLog):
     @el.ErrorLog(errorCode=el.NEFERROR_SAVEFRAMEDOESNOTEXIST)
     def getSaveFrameNames(self, returnType=NEF_RETURNALL):
         # return a list of the saveFrames in the file
-        names = [db for db in self._nefDict.keys()
+        if not self._nefDict:
+            return ()
+
+        names = [db for db in self._nefDict
                  if isinstance(self._nefDict[db], StarIo.NmrSaveFrame)]
 
         if returnType == NEF_RETURNNEF:
@@ -1045,12 +1048,13 @@ class NefImporter(el.ErrorLog):
 
     def getName(self, prePend=False) -> str:
         """Get the name as defined by the NmrDataBlock, optionally pre-pended with 'nefData_'
-        :return the name  or '' if undefined
+        :return the name or '' if undefined
         """
-        if self.data is None or self.data.name is None or len(self.data.name) == 0:
+        try:
+            nn = str(self.data.name or '')
+            return f'nefData_{nn}' if prePend else nn
+        except Exception:
             return ''
-        name = str(self.data.name) if not prePend else 'nefData_' + str(self.data.name)
-        return name
 
     def _attachReader(self, reader):
         """attach a reader method
