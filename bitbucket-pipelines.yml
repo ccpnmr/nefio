@@ -1,0 +1,91 @@
+# Push release/updates/edge to GitHub
+
+image: atlassian/default-image:latest
+
+definitions:
+  services:
+    docker:
+      memory: 1024
+
+  steps:
+    - step: &Push-to-GitHub-Main
+        name: Push code changes to GitHub
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - git remote add github-ccpnmr "https://$GITHUB_TOKEN@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
+          - git push --force github-ccpnmr "$BITBUCKET_BRANCH"
+
+    - step: &Push-to-GitHub-Updates
+        name: Push code changes to GitHub
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - git remote add github-ccpnmr "https://$GITHUB_TOKEN@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
+          - git push --force github-ccpnmr updates
+
+    - step: &Push-to-GitHub-Edge
+        name: Push code changes to GitHub
+        services:
+          - docker
+        caches:
+          - docker
+        script:
+          - git remote add github-ccpnmr "https://$GITHUB_TOKEN@github.com/ccpnmr/analysis-private.git"
+          - git push --force github-ccpnmr "$BITBUCKET_BRANCH"
+
+pipelines:
+  branches:
+    # release branches
+    #   the default-branch from which the download .zip is created
+    #   names are of the form X.Y.Z, e.g., 3.1.10
+    #     X major - a single digit currently = 3
+    #     Y minor - 1 or 2 digits
+    #     Z patch - 1 or 2 digits
+    "3.[0-9].[0-9]":
+      - step: *Push-to-GitHub-Main
+    "3.[0-9].[0-9][0-9]":
+      - step: *Push-to-GitHub-Main
+    "3.[0-9][0-9].[0-9]":
+      - step: *Push-to-GitHub-Main
+    "3.[0-9][0-9].[0-9][0-9]":
+      - step: *Push-to-GitHub-Main
+
+    # release + hotfixes to update server
+    #   branch containing updates to release that are pushed to the update server
+    #   names are of the form X.Y.Z-updates, e.g., 3.1.10-updates
+    #     X, Y, Z as above
+    "_SKIP[0-9].[0-9].[0-9]-updates":
+      - step: *Push-to-GitHub-Updates
+    "_SKIP[0-9].[0-9].[0-9][0-9]-updates":
+      - step: *Push-to-GitHub-Updates
+    "_SKIP[0-9].[0-9][0-9].[0-9]-updates":
+      - step: *Push-to-GitHub-Updates
+    "_SKIP[0-9].[0-9][0-9].[0-9][0-9]-updates":
+      - step: *Push-to-GitHub-Updates
+
+    "_SKIP[0-9].[0-9].[0-9]-updates[0-9]":
+      - step: *Push-to-GitHub-Updates
+    "_SKIP[0-9].[0-9].[0-9][0-9]-updates[0-9]":
+      - step: *Push-to-GitHub-Updates
+    "_SKIP[0-9].[0-9][0-9].[0-9]-updates[0-9]":
+      - step: *Push-to-GitHub-Updates
+    "_SKIP[0-9].[0-9][0-9].[0-9][0-9]-updates[0-9]":
+      - step: *Push-to-GitHub-Updates
+
+    # release candidates
+    #   the latest working-branch before content is merged into -updates and pushed to the server
+    #   names are of the form X.Y.Z-edge, e.g., 3.1.10-edge
+    #     X, Y, Z as above
+    "_SKIP[0-9].[0-9].[0-9]-edge":
+      - step: *Push-to-GitHub-Edge
+    "_SKIP[0-9].[0-9].[0-9][0-9]-edge":
+      - step: *Push-to-GitHub-Edge
+    "_SKIP[0-9].[0-9][0-9].[0-9]-edge":
+      - step: *Push-to-GitHub-Edge
+    "_SKIP[0-9].[0-9][0-9].[0-9][0-9]-edge":
+      - step: *Push-to-GitHub-Edge
