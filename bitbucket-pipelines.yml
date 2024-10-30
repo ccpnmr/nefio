@@ -15,8 +15,8 @@ definitions:
         caches:
           - docker
         script:
-          - git remote add github-ccpnmr "https://$GITHUB_TOKEN@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
-          - git push --force github-ccpnmr "$BITBUCKET_BRANCH"
+          - git remote add github-ccpnmr "https://${GITHUB_TOKEN}:x-oauth-basic@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
+          - git push --force github-ccpnmr "$BITBUCKET_BRANCH" || exit 1
 
     - step: &Push-to-GitHub-Updates
         name: Push code changes to GitHub
@@ -25,7 +25,7 @@ definitions:
         caches:
           - docker
         script:
-          - git remote add github-ccpnmr "https://$GITHUB_TOKEN@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
+          - git remote add github-ccpnmr "https://${GITHUB_TOKEN}:x-oauth-basic@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
           - git push --force github-ccpnmr updates
 
     - step: &Push-to-GitHub-Edge
@@ -35,8 +35,8 @@ definitions:
         caches:
           - docker
         script:
-          - git remote add github-ccpnmr "https://$GITHUB_TOKEN@github.com/ccpnmr/analysis-private.git"
-          - git push --force github-ccpnmr "$BITBUCKET_BRANCH"
+          - git remote add github-ccpnmr "https://${GITHUB_TOKEN}:x-oauth-basic@github.com/ccpnmr/analysis-private.git"
+          - git push --force github-ccpnmr "$BITBUCKET_BRANCH" || exit 1
 
 pipelines:
   branches:
