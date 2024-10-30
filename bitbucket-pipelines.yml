@@ -8,6 +8,7 @@ definitions:
         name: Push code changes to GitHub
         script:
           - cd $BITBUCKET_CLONE_DIR || exit 1
+          - echo ${BITBUCKET_CLONE_DIR}
           - git remote add github-ccpnmr "https://${GITHUB_TOKEN}:x-oauth-basic@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
           - git push --force github-ccpnmr "$BITBUCKET_BRANCH" || exit 1
 
