@@ -7,6 +7,9 @@ definitions:
     - step: &Push-to-GitHub-Main
         name: Push code changes to GitHub
         script:
+          - git fsck --full
+          - git gc --prune=now
+          - git repack -a -d
           - git remote add github-ccpnmr "https://${GITHUB_TOKEN}:x-oauth-basic@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
           - git push --force github-ccpnmr "$BITBUCKET_BRANCH" || exit 1
 
