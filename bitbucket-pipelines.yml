@@ -1,6 +1,6 @@
 # Push release/updates/edge to GitHub
 
-image: atlassian/default-image:3
+image: atlassian/default-image:4
 
 definitions:
   services:
