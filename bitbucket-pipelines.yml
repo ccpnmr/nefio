@@ -3,15 +3,9 @@
 image: atlassian/default-image:4
 
 definitions:
-  services:
-    docker:
-      memory: 1024
-
   steps:
     - step: &Push-to-GitHub-Main
         name: Push code changes to GitHub
-        services:
-          - docker
         script:
           - git remote add github-ccpnmr "https://${GITHUB_TOKEN}:x-oauth-basic@github.com/ccpnmr/$BITBUCKET_REPO_SLUG.git"
           - git push --force github-ccpnmr "$BITBUCKET_BRANCH" || exit 1
