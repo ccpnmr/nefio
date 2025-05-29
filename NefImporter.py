@@ -255,9 +255,15 @@ MAJOR_VERSION = '1'
 MINOR_VERSION = '1'
 PATCH_LEVEL = '0'
 __nef_version__ = '.'.join((MAJOR_VERSION, MINOR_VERSION))
+
 # __version__ = '.'.join( (__nef_version__, PATCH_LEVEL) )
 
 from . import NEF_ROOT_PATH
+
+
+SF_CATEGORY = 'sf_category'
+SF_FRAMECODE = 'sf_framecode'
+
 NEF_DEFAULT_DICT = os.path.join(NEF_ROOT_PATH, 'mmcif_nef_v1_1.dic')
 
 NEF_CATEGORIES = [('nef_nmr_meta_data', 'get_nmr_meta_data'),
@@ -273,11 +279,11 @@ NEF_REQUIRED_SAVEFRAME_BY_FRAMECODE = ['nef_nmr_meta_data',
                                        'nef_molecular_system']
 NEF_REQUIRED_SAVEFRAME_BY_CATEGORY = ['nef_chemical_shift_list', ]
 
-NEF_ALL_SAVEFRAME_REQUIRED_FIELDS = ['sf_category',
-                                     'sf_framecode', ]
+NEF_ALL_SAVEFRAME_REQUIRED_FIELDS = [SF_CATEGORY,
+                                     SF_FRAMECODE, ]
 
-MD_REQUIRED_FIELDS = ['sf_category',
-                      'sf_framecode',
+MD_REQUIRED_FIELDS = [SF_CATEGORY,
+                      SF_FRAMECODE,
                       'format_name',
                       'format_version',
                       'program_name',
@@ -297,8 +303,8 @@ MD_RH_OPTIONAL_FIELDS = ['program_version',
                          'script_name',
                          'script']
 
-MS_REQUIRED_FIELDS = ['sf_category',
-                      'sf_framecode']
+MS_REQUIRED_FIELDS = [SF_CATEGORY,
+                      SF_FRAMECODE]
 MS_REQUIRED_LOOPS = ['nef_sequence']
 MS_OPTIONAL_LOOPS = ['nef_covalent_links']
 MS_NS_REQUIRED_FIELDS = ['chain_code',
@@ -315,8 +321,8 @@ MS_CL_REQUIRED_FIELDS = ['chain_code_1',
                          'residue_type_2',
                          'atom_name_2']
 
-CSL_REQUIRED_FIELDS = ['sf_category',
-                       'sf_framecode',
+CSL_REQUIRED_FIELDS = [SF_CATEGORY,
+                       SF_FRAMECODE,
                        'atom_chem_shift_units']
 CSL_REQUIRED_LOOPS = ['nef_chemical_shift']
 CSL_CS_REQUIRED_FIELDS = ['chain_code',
@@ -326,8 +332,8 @@ CSL_CS_REQUIRED_FIELDS = ['chain_code',
                           'value']
 CSL_CS_OPTIONAL_FIELDS = ['value_uncertainty', ]
 
-DRL_REQUIRED_FIELDS = ['sf_category',
-                       'sf_framecode',
+DRL_REQUIRED_FIELDS = [SF_CATEGORY,
+                       SF_FRAMECODE,
                        'potential_type']
 DRL_REQUIRED_LOOPS = ['nef_distance_restraint']
 DRL_OPTIONAL_FIELDS = ['restraint_origin', ]
@@ -350,8 +356,8 @@ DRL_DR_OPTIONAL_FIELDS = ['restraint_combination_id',
                           'upper_limit',
                           'upper_linear_limit']
 
-DIHRL_REQUIRED_FIELDS = ['sf_category',
-                         'sf_framecode',
+DIHRL_REQUIRED_FIELDS = [SF_CATEGORY,
+                         SF_FRAMECODE,
                          'potential_type']
 DIHRL_REQUIRED_LOOPS = ['nef_dihedral_restraint']
 DIHRL_OPTIONAL_FIELDS = ['restraint_origin', ]
@@ -383,8 +389,8 @@ DIHRL_DIHR_OPTIONAL_FIELDS = ['target_value',
                               'upper_linear_limit',
                               'name']
 
-RRL_REQUIRED_FIELDS = ['sf_category',
-                       'sf_framecode',
+RRL_REQUIRED_FIELDS = [SF_CATEGORY,
+                       SF_FRAMECODE,
                        'potential_type']
 RRL_REQUIRED_LOOPS = ['nef_rdc_restraint']
 RRL_OPTIONAL_FIELDS = ['restraint_origin',
@@ -414,8 +420,8 @@ RRL_RR_OPTIONAL_FIELDS = ['restraint_combination_id',
                           'scale',
                           'distance_dependent', ]
 
-PL_REQUIRED_FIELDS = ['sf_category',
-                      'sf_framecode',
+PL_REQUIRED_FIELDS = [SF_CATEGORY,
+                      SF_FRAMECODE,
                       'num_dimensions',
                       'chemical_shift_list']
 PL_REQUIRED_LOOPS = ['nef_spectrum_dimension',
@@ -450,8 +456,8 @@ PL_P_OPTIONAL_ALTERNATE_FIELDS = {r'(height)'         : ['{}_uncertainty', ],
                                   }
 PL_P_OPTIONAL_FIELDS_PATTERN = ['position_uncertainty_{}', ]
 
-PRLS_REQUIRED_FIELDS = ['sf_category',
-                        'sf_framecode']
+PRLS_REQUIRED_FIELDS = [SF_CATEGORY,
+                        SF_FRAMECODE]
 PRLS_REQUIRED_LOOPS = ['nef_peak_restraint_link']
 PRLS_PRL_REQUIRED_FIELDS = ['nmr_spectrum_id',
                             'peak_id',
@@ -500,15 +506,17 @@ def _tryNumber(value):
 
 
 REGEXREMOVEENDQUOTES = u'\`\d*`+?'
-_nameFromCategory = namedtuple('_nameFromCategory', ('framecode', 'frameName', 'subname', 'prefix', 'postfix', 'precode', 'postcode', 'category'))
+_nameFromCategory = namedtuple('_nameFromCategory',
+                               ('framecode', 'frameName', 'subname', 'prefix', 'postfix', 'precode', 'postcode',
+                                'category'))
 
 
 def _saveFrameNameFromCategory(saveFrame: StarIo.NmrSaveFrame):
     """Parse the saveframe name to extract pre- and post- numbering
     necessary for restraint and spectrum saveframe names
     """
-    category = saveFrame['sf_category']
-    framecode = saveFrame['sf_framecode']
+    category = saveFrame[SF_CATEGORY]
+    framecode = saveFrame[SF_FRAMECODE]
     # frameName = framecode[len(category) + 1:]
     return _getNameFromCategory(category, framecode)
 
@@ -542,7 +550,7 @@ class NefImporter(el.ErrorLog):
                  programName='Unknown',
                  programVersion='Unknown',
                  errorLogging=el.NEF_STANDARD,
-                 hidePrefix = True,
+                 hidePrefix=True,
                  ):
 
         el.ErrorLog.__init__(self, loggingMode=errorLogging)
@@ -740,8 +748,8 @@ class NefImporter(el.ErrorLog):
 
         self._nefDict[nefNmr] = StarIo.NmrDataBlock()
         self._nefDict[nefNmr].update({k: '' for k in MD_REQUIRED_FIELDS})
-        self._nefDict[nefNmr]['sf_category'] = 'nef_nmr_meta_data'
-        self._nefDict[nefNmr]['sf_framecode'] = 'nef_nmr_meta_data'
+        self._nefDict[nefNmr][SF_CATEGORY] = 'nef_nmr_meta_data'
+        self._nefDict[nefNmr][SF_FRAMECODE] = 'nef_nmr_meta_data'
         self._nefDict[nefNmr]['format_name'] = 'Nmr_Exchange_Format'
         self._nefDict[nefNmr]['format_version'] = __nef_version__
         self._nefDict[nefNmr]['program_name'] = self.programName
@@ -749,8 +757,8 @@ class NefImporter(el.ErrorLog):
 
         self._nefDict[nefMol] = StarIo.NmrDataBlock()
         self._nefDict[nefMol].update({k: '' for k in MS_REQUIRED_FIELDS})
-        self._nefDict[nefMol]['sf_category'] = 'nef_molecular_system'
-        self._nefDict[nefMol]['sf_framecode'] = 'nef_molecular_system'
+        self._nefDict[nefMol][SF_CATEGORY] = 'nef_molecular_system'
+        self._nefDict[nefMol][SF_FRAMECODE] = 'nef_molecular_system'
         for l in MS_REQUIRED_LOOPS:
             self._nefDict['nef_molecular_system'][l] = []
             self.addChemicalShiftList(nefChem, 'ppm')
@@ -771,8 +779,8 @@ class NefImporter(el.ErrorLog):
         self._nefDict[name] = StarIo.NmrSaveFrame()
         if required_fields is not None:
             self._nefDict[name].update({k: '' for k in required_fields})
-            self._nefDict[name]['sf_category'] = category
-            self._nefDict[name]['sf_framecode'] = name
+            self._nefDict[name][SF_CATEGORY] = category
+            self._nefDict[name][SF_FRAMECODE] = name
         if required_loops is not None:
             for l in required_loops:
                 self._nefDict[name][l] = []
@@ -854,7 +862,7 @@ class NefImporter(el.ErrorLog):
 
         category = 'nef_nmr_spectrum'
         if chemical_shift_list in self:
-            if self._nefDict[chemical_shift_list]['sf_category'] == 'nef_chemical_shift_list':
+            if self._nefDict[chemical_shift_list][SF_CATEGORY] == 'nef_chemical_shift_list':
                 self.addSaveFrame(name=name, category=category,
                                   required_fields=PL_REQUIRED_FIELDS,
                                   required_loops=PL_REQUIRED_LOOPS)
@@ -910,7 +918,8 @@ class NefImporter(el.ErrorLog):
         nefDataExtent = StarIo.parseNefFile(fileName=fileName, mode=mode)
         _dataBlocks = list(nefDataExtent.values())
         if len(_dataBlocks) > 1:
-            raise RuntimeError('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
+            raise RuntimeError(
+                'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
         self._nefDict = _dataBlocks[0]
         self._path = fileName
         self._doValidate()
@@ -925,7 +934,8 @@ class NefImporter(el.ErrorLog):
         nefDataExtent = StarIo.parseNef(text=text, mode=mode)
         _dataBlocks = list(nefDataExtent.values())
         if len(_dataBlocks) > 1:
-            raise RuntimeError('More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
+            raise RuntimeError(
+                'More than one datablock in a NEF file is not allowed.  Using the first and discarding the rest.\n')
         self._nefDict = _dataBlocks[0]
         self._path = 'loadedFromText'
         self._doValidate()
@@ -995,7 +1005,7 @@ class NefImporter(el.ErrorLog):
             newSaveFrameName = '_'.join([category, prefix + newName + postfix])
 
             saveFrame.name = newSaveFrameName
-            saveFrame['sf_framecode'] = newSaveFrameName
+            saveFrame[SF_FRAMECODE] = newSaveFrameName
 
             data = [(k, val) for k, val in self._nefDict.items()]
             for ii, (k, val) in enumerate(data):
@@ -1096,6 +1106,7 @@ class NefImporter(el.ErrorLog):
         return '<%s: errorLogging=%r; path=%s>' % (self.__class__.__name__, self._loggingMode, self._path)
 
     __repr__ = __str__
+
 
 class NefDict(StarIo.NmrSaveFrame, el.ErrorLog):
     """
@@ -1366,10 +1377,10 @@ if __name__ == '__main__':
         print(sf1.hasTable('nmr_residue'))
 
         print(sf1.getAttributeNames())
-        print(sf1.hasAttribute('sf_framecode'))
+        print(sf1.hasAttribute(SF_FRAMECODE))
         print(sf1.hasAttribute('nothing'))
         print(sf1.getAttribute('notHere'))
-        print(sf1.getAttribute('sf_category'))
+        print(sf1.getAttribute(SF_CATEGORY))
 
     print('Testing getTable')
     try:
