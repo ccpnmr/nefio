@@ -210,6 +210,7 @@ import re
 import numpy as np
 from collections import OrderedDict, namedtuple
 from pathlib import Path
+from typing import Callable, Any, TypeAlias
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -217,7 +218,7 @@ from pathlib import Path
 # when importing into your own code, it can be safely removed
 
 def import_parents(level=1):
-    global __package__
+    global __package__  # noqa
 
     import sys
     from os import path
@@ -225,7 +226,7 @@ def import_parents(level=1):
 
     # pathlib does all this a lot nicer, but don't think it's in python2.7
     top = parent = path.dirname(path.abspath(__file__))
-    package = []
+    package: list[str] = []
     for t in range(level):
         package.insert(0, os.path.basename(top))
         top = path.dirname(top)
@@ -240,7 +241,7 @@ def import_parents(level=1):
     importlib.import_module(__package__)
 
 
-if __name__ == '__main__' and __package__ is None:
+if __name__ == '__main__' and __package__ is None:  # noqa
     import_parents(level=1)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -530,11 +531,49 @@ def _getNameFromCategory(category, framecode):
     return _nameFromCategory(framecode, frameName, subName, prefix, postfix, preSerial, postSerial, category)
 
 
+# Define the complex Callable type using a TypeAlias at the top (module-level)
+# returns triple of tuples of warnings, errors, and standard messages
+VerifierResult: TypeAlias = tuple[
+    tuple[str, ...],  # warnings
+    tuple[str, ...],  # errors
+    tuple[str, ...]   # messages
+]
+
+# The TypeAlias you suggested, using the VerifierResult for the return type
+VerifierType: TypeAlias = Callable[
+    [Any, Any, Any],  # Accepts (Project, *args, **kwds)
+    VerifierResult    # Returns a Tuple of 3 Tuples
+]
+
+# Define the complex Callable type using a TypeAlias at the top (module-level)
+ReaderResult: TypeAlias = None
+
+# The TypeAlias you suggested, using the ReaderResult for the return type
+ReaderType: TypeAlias = Callable[
+    [Any, Any, Any],  # Accepts (Project, *args, **kwds)
+    ReaderResult      # Returns None only?
+]
+
+# Define the complex Callable type using a TypeAlias at the top (module-level)
+ContentResult: TypeAlias = OrderedDict
+
+# The TypeAlias you suggested, using the ContentResult for the return type
+ContentType: TypeAlias = Callable[
+    [Any, Any, Any],  # Accepts (Project, *args, **kwds)
+    ContentResult     # Returns an OrderedDict
+]
+
+
 class NefImporter(el.ErrorLog):
     """Object for accessing Nef data tree.
     The Nef data consist of a single NmrStar dataBlock (an OrderedDict),
     with (saveFrameName, NmrSaveFrame) key,value pairs
     """
+    # Apply the clean type aliases to the instance attributes
+    _content: ContentType
+    _reader: ReaderType
+    _verifier: VerifierType
+    _nefDict: StarIo.NmrDataBlock
 
     # put functions in here to read the contents of the dict.
     # superclassed from DataBlock which is of type StarContainer
@@ -559,7 +598,7 @@ class NefImporter(el.ErrorLog):
 
         # No data read so far
         self._saveFrameNames = {}
-        self._nefDict = {}
+        self._nefDict = StarIo.NmrDataBlock()
         # self._initialise()  # initialise a basic object
 
         self._path = None
@@ -1056,32 +1095,35 @@ class NefImporter(el.ErrorLog):
         except Exception:
             return ''
 
-    def _attachReader(self, reader):
+    def _attachReader(self, reader: ReaderType):
         """attach a reader method
         """
         self._reader = reader
 
-    def _importNef(self, project, *args, **kwds):
+    def _importNef(self, project, *args, **kwds) -> ReaderResult:
         if hasattr(self, '_reader'):
             return self._reader(project, *args, **kwds)
+        raise RuntimeError(f'No attached reader')
 
-    def _attachVerifier(self, verifier):
+    def _attachVerifier(self, verifier: VerifierType):
         """attach a verify method
         """
         self._verifier = verifier
 
-    def _verifyNef(self, project, *args, **kwds):
+    def _verifyNef(self, project, *args, **kwds) -> VerifierResult:
         if hasattr(self, '_verifier'):
             return self._verifier(project, *args, **kwds)
+        raise RuntimeError(f'No attached verifier')
 
-    def _attachContent(self, content):
+    def _attachContent(self, content: ContentType):
         """attach a content method
         """
         self._content = content
 
-    def _contentNef(self, project, *args, **kwds):
+    def _contentNef(self, project, *args, **kwds) -> ContentResult:
         if hasattr(self, '_content'):
             return self._content(project, *args, **kwds)
+        raise RuntimeError(f'No attached content')
 
     def _attachClear(self, clr):
         """attach a clear/reset method
