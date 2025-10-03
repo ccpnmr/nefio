@@ -506,7 +506,7 @@ def _tryNumber(value):
                 pass
 
 
-REGEXREMOVEENDQUOTES = u'\`\d*`+?'
+REGEXREMOVEENDQUOTES = r'\`\d*`+?'
 _nameFromCategory = namedtuple('_nameFromCategory',
                                ('framecode', 'frameName', 'subname', 'prefix', 'postfix', 'precode', 'postcode',
                                 'category'))
